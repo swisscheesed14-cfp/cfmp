@@ -1,3 +1,4 @@
+from dotenv import load_dotenv; load_dotenv()
 from pathlib import Path
 from pydantic import BaseModel
 import os

@@ -1,0 +1,12 @@
+pandas
+duckdb
+httpx
+pydantic>=2
+numpy
+scipy
+scikit-learn
+orjson
+pyarrow
+tenacity
+python-dotenv
+pyyaml
