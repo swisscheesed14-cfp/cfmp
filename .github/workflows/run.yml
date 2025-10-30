@@ -2,8 +2,12 @@ name: daily-pipeline
 
 on:
   schedule:
-    - cron: "00 12 * * *"   # ~6 AM CST / 7 AM CDT
+    # Thu, Fri, Sat at 12:00 UTC ≈ 6:00 CST / 7:00 CDT
+    - cron: "0 12 * * 4,5,6"
+    # Sunday verifier at 15:00 UTC ≈ 9:00 CST / 10:00 CDT
+    - cron: "0 15 * * 0"
   workflow_dispatch:
+
 
 jobs:
   run-season:
