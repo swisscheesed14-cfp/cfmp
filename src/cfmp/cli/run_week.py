@@ -7,13 +7,22 @@ from cfmp.weather.nws import hourly_forecast_many
 LOCAL_TZ = ZoneInfo("America/Chicago")
 CACHE_FILE = ".cache/venues.parquet"
 
-def pick_year_week() -> tuple[int, int]:
-    now = datetime.now(LOCAL_TZ)
-    year = int(os.getenv("CFB_YEAR", "0")) or now.year
-    if not os.getenv("CFB_YEAR") and now.month < 8:
-        year -= 1
-    week = int(os.getenv("CFB_WEEK", "0")) or now.isocalendar().week
+
+def _to_int(x):
+    try:
+        return int(x)
+    except (TypeError, ValueError):
+        return None
+
+def pick_year_week():
+    now = datetime.now()
+    year = _to_int(os.getenv("CFB_YEAR")) or now.year
+    week = _to_int(os.getenv("CFB_WEEK"))
+    if week is None:
+        # fallback: ISO week number (good enough for automation)
+        week = now.isocalendar().week
     return year, week
+
 
 def gval(g: dict, *keys):
     for k in keys:
