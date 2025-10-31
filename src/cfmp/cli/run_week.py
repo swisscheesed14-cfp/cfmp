@@ -30,7 +30,7 @@ def pick_year_week() -> tuple[int, int]:
         return int(y), int(w)
 
     # Ask CFBD which week we’re in
-    cal = cfb.calendar(year=now.year)  # returns weeks with startDate/endDate
+    cal = cfbd.calendar(year=now.year)  # returns weeks with startDate/endDate
     for row in cal:
         # dates are YYYY-MM-DD; compare in local date
         if row["startDate"] <= now.strftime("%Y-%m-%d") <= row["endDate"]:
