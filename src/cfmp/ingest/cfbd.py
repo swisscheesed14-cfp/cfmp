@@ -1,3 +1,4 @@
+import ossdfsdsdddd
 import httpx, time
 from typing import Any
 from ..config import SETTINGS
@@ -31,3 +32,17 @@ def schedule(year: int, week: int | None = None, season_type: str | None = None)
 
 def venues() -> list[dict[str, Any]]:
     return _get("/venues")
+
+def calendar(year: int):
+    """
+    Return CFBD calendar rows for a season.
+    Each row has: week, season, startDate, endDate, etc.
+    """
+    r = httpx.get(
+        "https://api.collegefootballdata.com/calendar",
+        params={"year": year},
+        headers={"Authorization": f"Bearer {os.getenv('CFBD_KEY')}"},  # secret already set
+        timeout=30,
+    )
+    r.raise_for_status()
+    return r.json()
