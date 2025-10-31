@@ -2,46 +2,58 @@ name: daily-pipeline
 
 on:
   schedule:
-    # Thu, Fri, Sat at 12:00 UTC ≈ 6:00 CST / 7:00 CDT
+    # Thu, Fri, Sat at 10:00 UTC  ≈ 6:00 CST / 7:00 CDT
     - cron: "0 10 * * 4,5,6"
-    # Sunday verifier at 15:00 UTC ≈ 9:00 CST / 10:00 CDT
-    - cron: "0 10 * * 0"
   workflow_dispatch:
 
-
 jobs:
-  run-season:
+  slate:
     runs-on: ubuntu-latest
+    env:
+      PYTHONUNBUFFERED: "1"
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      TZ: America/Chicago
+      CFBD_KEY: ${{ secrets.CFBD_KEY }}
+      NWS_USER_AGENT: ${{ secrets.NWS_USER_AGENT }}
+      CFB_WEEK: ""   # allow auto-selection in code
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Season gate
-        run: |
-          month=$(TZ=America/Chicago date +%m)
-          if [ "$month" -lt 8 ] && [ "$month" -ne 1 ]; then
-            echo "Off-season → skip."
-            exit 0
-          fi
-
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install deps
         run: |
-          python -m pip install -U pip
-          pip install -e .
+          set -euxo pipefail
+          python -V
+          pip install -U pip uv
+          uv pip install --system -e .
+          python - <<'PY'
+          from importlib import import_module
+          import_module("cfmp")
+          print("cfmp import ok")
+          PY
 
       - name: Run slate
-        env:
-          CFBD_KEY: ${{ secrets.CFBD_KEY }}
-          NWS_USER_AGENT: ${{ secrets.NWS_USER_AGENT }}
-          TZ: America/Chicago
-        run: python -m cfmp.cli.run_week
+        run: |
+          set -euxo pipefail
+          echo "==> running cfmp.cli.run_week"
+          python -m cfmp.cli.run_week
+          echo "==> files written under runs/"
+          find runs -maxdepth 2 -type f -print | sed -e 's/^/  /' || true
+          LATEST="$(ls -td runs/* | head -1)"
+          echo "==> latest run dir: ${LATEST:-<none>}"
+          test -n "${LATEST:-}" && head -n 2 "$LATEST/slate.csv" || true
 
       - name: Locate latest run folder
+        id: locate
+        shell: bash
         run: |
-          set -e
+          set -euxo pipefail
           RUN_DIR=$(ls -td runs/* | head -1)
           echo "RUN_DIR=$RUN_DIR" >> "$GITHUB_ENV"
           echo "RUN_NAME=${RUN_DIR##runs/}" >> "$GITHUB_ENV"
@@ -54,5 +66,3 @@ jobs:
           path: ${{ env.RUN_DIR }}
           if-no-files-found: error
           retention-days: 14
-
-

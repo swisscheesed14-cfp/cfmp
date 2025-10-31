@@ -1,18 +1,14 @@
-# src/cfmp/cli/run_week.py
-import os
-import json
-import pandas as pd
-from datetime import datetime, timezone
+import os, json, time, pandas as pd
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-
 from cfmp.ingest import cfbd
 from cfmp.weather.nws import hourly_forecast_many
 
 LOCAL_TZ = ZoneInfo("America/Chicago")
 CACHE_FILE = ".cache/venues.parquet"
 
-
 # ---------- helpers ----------
+
 def _to_int(x):
     try:
         return int(x)
@@ -20,186 +16,134 @@ def _to_int(x):
         return None
 
 
-# in src/cfmp/cli/run_week.py
-def pick_year_week() -> tuple[int, int]:
-    now = datetime.now(LOCAL_TZ)
-    # manual override still wins
-    y = os.getenv("CFB_YEAR")
-    w = os.getenv("CFB_WEEK")
-    if y and w:
-        return int(y), int(w)
-
-    # Ask CFBD which week we’re in
-    cal = cfbd.calendar(year=now.year)  # returns weeks with startDate/endDate
-    for row in cal:
-        # dates are YYYY-MM-DD; compare in local date
-        if row["startDate"] <= now.strftime("%Y-%m-%d") <= row["endDate"]:
-            return int(row["season"]), int(row["week"])
-
-    # fallback: nearest upcoming week this year
-    future = [r for r in cal if r["startDate"] >= now.strftime("%Y-%m-%d")]
-    if future:
-        r = future[0]
-        return int(r["season"]), int(r["week"])
-
-    # last resort: current year, week 1
-    return now.year, 1
-
-
 def gval(g: dict, *keys):
-    """Return the first valid non-empty value for any of the given keys."""
     for k in keys:
         if k in g and g[k] not in (None, ""):
             return g[k]
-    # fallback for common alternate field names
-    alt_map = {
-        "away": "away_team",
-        "home": "home_team",
-        "kickoff": "start_date",
-    }
-    for k in keys:
-        if k in alt_map and alt_map[k] in g and g[alt_map[k]] not in (None, ""):
-            return g[alt_map[k]]
     return None
-
 
 
 def load_cached_venues():
     if os.path.exists(CACHE_FILE):
         return pd.read_parquet(CACHE_FILE).to_dict("records")
-    # first time: pull once and cache
     v = cfbd.venues()
-    cols = ["id", "name", "latitude", "longitude"]
-    df = pd.DataFrame(v)[cols]
+    df = pd.DataFrame(v)[["id", "name", "latitude", "longitude"]]
     os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
     df.to_parquet(CACHE_FILE, index=False)
+    print(f"Saved {len(df)} venues to {CACHE_FILE}")
     return df.to_dict("records")
 
 
-# ---------- forecast confidence ----------
-def conf_from_hours(hours_to_kick: float | None) -> float:
-    """
-    Map hours until kickoff to a [0,1] confidence weight for weather usefulness.
-    Coarse bins, intentionally simple.
-    """
-    if hours_to_kick is None:
-        return 0.5
-    h = max(0.0, hours_to_kick)
-    if h <= 48:
-        return 0.95
-    if h <= 72:
-        return 0.90
-    if h <= 120:
-        return 0.85
-    if h <= 168:
-        return 0.70
-    return 0.50
+# ---------- new: robust year/week logic ----------
+def pick_year_week():
+    now_dt = datetime.now(LOCAL_TZ)
+    today = now_dt.date()
+    year = int(os.getenv("CFB_YEAR", now_dt.year))
+
+    wk_env = os.getenv("CFB_WEEK")
+    if wk_env:
+        return year, int(wk_env)
+
+    try:
+        weeks = cfbd.calendar(year=year)
+        for w in weeks:
+            s = datetime.fromisoformat(w["startDate"]).date()
+            e = datetime.fromisoformat(w["endDate"]).date()
+            if s <= today <= e:
+                return year, int(w["week"])
+        if weeks:
+            first = int(weeks[0]["week"])
+            last = int(weeks[-1]["week"])
+            if today < datetime.fromisoformat(weeks[0]["startDate"]).date():
+                return year, first
+            return year, last
+    except Exception as e:
+        print(f"Calendar lookup failed: {e}")
+
+    # ultimate fallback
+    return year, now_dt.isocalendar().week
 
 
 # ---------- main ----------
+
 def main():
     year, week = pick_year_week()
-    print(f"Fetching games {year} W{week:02d}…")
+    print(f"Running for {year}-W{week}")
 
-    games = cfbd.schedule(year=year, week=week)
-    print(f"games ok: {len(games)}")
-
-    venues = load_cached_venues()
-    v_by_id = {v["id"]: v for v in venues}
-    print(f"venues ok: {len(venues)}")
-
-    # Prepare coordinates for weather calls
-    coords = []
+    venues = {v["id"]: v for v in load_cached_venues()}
+    games = cfbd.games(year=year, week=week)
     rows = []
+
     for g in games:
         vid = gval(g, "venue_id")
-        v = v_by_id.get(vid) if vid is not None else None
-        lat = gval(v or {}, "latitude")
-        lon = gval(v or {}, "longitude")
+        v = venues.get(vid, {})
+        lat = gval(v, "latitude")
+        lon = gval(v, "longitude")
 
-        # kickoff parsing
-        ko = gval(g, "start_date") or gval(g, "kickoff") or gval(g, "start_time_tbd")
+        kickoff_raw = gval(g, "start_date")
         kickoff_dt = None
-        if isinstance(ko, str) and len(ko) >= 10:
-            # CFBD returns ISO8601; make naive-UTC then convert to LOCAL_TZ for confidence calc
+        if kickoff_raw:
             try:
-                kickoff_dt = datetime.fromisoformat(ko.replace("Z", "+00:00")).astimezone(LOCAL_TZ)
+                kickoff_dt = datetime.fromisoformat(kickoff_raw.replace("Z", "+00:00"))
             except Exception:
-                kickoff_dt = None
+                pass
 
-        if lat is not None and lon is not None:
-            coords.append((lat, lon))
+        rows.append({
+            "id": gval(g, "id"),
+            "year": year,
+            "week": week,
+            "kickoff": kickoff_dt.isoformat() if kickoff_dt else None,
+            "away": gval(g, "away_team"),
+            "home": gval(g, "home_team"),
+            "venue": gval(v, "name"),
+            "venue_id": vid,
+            "venue_lat": lat,
+            "venue_lon": lon,
+            "forecast_sample": None,
+            "forecast_conf": None
+        })
 
-        rows.append(
-            {
-                "id": gval(g, "id"),
-                "year": year,
-                "week": week,
-                "kickoff": kickoff_dt.isoformat() if kickoff_dt else None,
-                "away": gval(g, "away_team"),
-                "home": gval(g, "home_team"),
-                "venue": gval(v or {}, "name"),
-                "venue_id": vid,
-                "venue_lat": lat,
-                "venue_lon": lon,
-                # filled after weather call:
-                "forecast_sample": None,
-                "forecast_conf": None,
-            }
-        )
+    df = pd.DataFrame(rows)
 
-    # Weather: sample next 6 hours around now, de-duplicated coords
-    print("Loading weather…")
-    uniq = sorted(set([c for c in coords if c[0] is not None and c[1] is not None]))
-    fc_map = hourly_forecast_many(uniq, hours=6, concurrency=32)  # {(lat,lon): [...]}
-    print("weather ok")
-
-    now_local = datetime.now(LOCAL_TZ)
-
-    # Attach one forecast sample and confidence per game
-    for r in rows:
-        lat, lon = r["venue_lat"], r["venue_lon"]
-        if lat is not None and lon is not None:
-            r["forecast_sample"] = fc_map.get((lat, lon))  # list[dict] or None
-
-        # confidence from time-to-kickoff
-        if r["kickoff"]:
-            try:
-                ko = datetime.fromisoformat(r["kickoff"])
-                dt_hours = (ko - now_local).total_seconds() / 3600.0
-            except Exception:
-                dt_hours = None
-        else:
-            dt_hours = None
-        r["forecast_conf"] = round(conf_from_hours(dt_hours), 2)
-
-    # Write outputs
-    run_dir = os.path.join("runs", f"{year}-W{week:02d}")
-    os.makedirs(run_dir, exist_ok=True)
-
-    # CSV (flat view)
-    csv_cols = [
-        "id",
-        "year",
-        "week",
-        "kickoff",
-        "away",
-        "home",
-        "venue",
-        "venue_id",
-        "venue_lat",
-        "venue_lon",
-        "forecast_conf",
-    ]
-    pd.DataFrame([{k: r.get(k) for k in csv_cols} for r in rows]).to_csv(
-        os.path.join(run_dir, "slate.csv"), index=False
+    # weather forecast block
+    forecasts = hourly_forecast_many(
+        df[["venue_id", "venue_lat", "venue_lon"]].dropna().to_dict("records")
     )
+    fc_map = {f["venue_id"]: f for f in forecasts}
 
-    # JSON (rich preview including forecast sample)
-    with open(os.path.join(run_dir, "slate_preview.json"), "w", encoding="utf-8") as f:
-        json.dump(rows, f, indent=2)
+    # assign confidence and samples
+    for i, row in df.iterrows():
+        kickoff_str = row["kickoff"]
+        conf = None
+        if kickoff_str:
+            try:
+                kickoff = datetime.fromisoformat(kickoff_str)
+                dt_to_kick = kickoff - datetime.now(LOCAL_TZ)
+                days = dt_to_kick.total_seconds() / 86400
+                if days >= 7:
+                    conf = 0.5
+                elif 5 <= days < 7:
+                    conf = 0.7
+                elif 2 <= days < 5:
+                    conf = 0.85
+                else:
+                    conf = 0.95
+            except Exception:
+                conf = None
+        df.at[i, "forecast_conf"] = conf
 
-    print(f"Wrote {run_dir}")
+        fid = row["venue_id"]
+        if fid in fc_map:
+            df.at[i, "forecast_sample"] = json.dumps(fc_map[fid].get("hours", []))
+
+    # write output files
+    os.makedirs(f"runs/{year}-W{week:02d}", exist_ok=True)
+    csv_path = f"runs/{year}-W{week:02d}/slate.csv"
+    json_path = f"runs/{year}-W{week:02d}/slate.json"
+    df.to_csv(csv_path, index=False)
+    df.to_json(json_path, orient="records", indent=2)
+
+    print(f"Saved {len(df)} games to {csv_path} and {json_path}")
 
 
 if __name__ == "__main__":
