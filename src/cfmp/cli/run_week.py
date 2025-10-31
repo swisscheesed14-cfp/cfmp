@@ -88,20 +88,36 @@ def main():
             except Exception:
                 pass
 
-        rows.append({
-            "id": gval(g, "id"),
-            "year": year,
-            "week": week,
-            "kickoff": kickoff_dt.isoformat() if kickoff_dt else None,
-            "away": gval(g, "away_team"),
-            "home": gval(g, "home_team"),
-            "venue": gval(v, "name"),
-            "venue_id": vid,
-            "venue_lat": lat,
-            "venue_lon": lon,
-            "forecast_sample": None,
-            "forecast_conf": None
-        })
+        rows.append(
+    {
+        "id": gval(g, "id"),
+        "year": year,
+        "week": week,
+        "kickoff": kickoff_dt.isoformat() if kickoff_dt else None,
+        "away": gval(g, "away_team", "awayTeam", "away"),
+        "home": gval(g, "home_team", "homeTeam", "home"),
+        # venue info (robust fallbacks)
+        "venue": (
+            VENUES.get(gval(g, "venue_id", "venueId"), {}).get("name")
+            if gval(g, "venue_id", "venueId")
+            else gval(g, "venue", "venue_name", "venueName", "stadium", "location")
+        ),
+        "venue_id": gval(g, "venue_id", "venueId"),
+        "venue_lat": (
+            VENUES.get(gval(g, "venue_id", "venueId"), {}).get("latitude")
+            if gval(g, "venue_id", "venueId")
+            else gval(g, "venue_lat", "venueLatitude", "venue_latitude", "latitude")
+        ),
+        "venue_lon": (
+            VENUES.get(gval(g, "venue_id", "venueId"), {}).get("longitude")
+            if gval(g, "venue_id", "venueId")
+            else gval(g, "venue_lon", "venueLongitude", "venue_longitude", "longitude")
+        ),
+        # filled after weather call
+        "forecast_sample": None,
+        "forecast_conf": None,
+    }
+)
 
     df = pd.DataFrame(rows)
 
