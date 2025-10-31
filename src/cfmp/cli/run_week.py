@@ -20,15 +20,30 @@ def _to_int(x):
         return None
 
 
-def pick_year_week():
-    """Pick target year/week from env or 'current' ISO week as a fallback."""
+# in src/cfmp/cli/run_week.py
+def pick_year_week() -> tuple[int, int]:
     now = datetime.now(LOCAL_TZ)
-    year = _to_int(os.getenv("CFB_YEAR")) or now.year
-    week = _to_int(os.getenv("CFB_WEEK"))
-    if week is None:
-        # ISO week is good enough when running ad-hoc
-        week = now.isocalendar().week
-    return year, week
+    # manual override still wins
+    y = os.getenv("CFB_YEAR")
+    w = os.getenv("CFB_WEEK")
+    if y and w:
+        return int(y), int(w)
+
+    # Ask CFBD which week we’re in
+    cal = cfb.calendar(year=now.year)  # returns weeks with startDate/endDate
+    for row in cal:
+        # dates are YYYY-MM-DD; compare in local date
+        if row["startDate"] <= now.strftime("%Y-%m-%d") <= row["endDate"]:
+            return int(row["season"]), int(row["week"])
+
+    # fallback: nearest upcoming week this year
+    future = [r for r in cal if r["startDate"] >= now.strftime("%Y-%m-%d")]
+    if future:
+        r = future[0]
+        return int(r["season"]), int(r["week"])
+
+    # last resort: current year, week 1
+    return now.year, 1
 
 
 def gval(g: dict, *keys):
