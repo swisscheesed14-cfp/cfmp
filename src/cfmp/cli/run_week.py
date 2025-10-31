@@ -1,233 +1,243 @@
-# src/cfmp/cli/run_week.py
+# -*- coding: utf-8 -*-
+"""
+Produce the weekly slate CSV + JSON.
+Hard requirements:
+- CFB_YEAR and CFB_WEEK must be set (we fail if not).
+- Writes to runs/{year}-W{week}/slate.csv and slate_preview.json
+- Adds forecast_conf based on time-to-kickoff
+- Uses cached venues from .cache/venues.parquet if present
+"""
+
 from __future__ import annotations
 
 import os
 import json
-from pathlib import Path
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from typing import Any, Dict, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple, Optional
 
-import pandas as pd
+import pandas as pd  # for parquet cache
 
-# project imports
-from cfmp.ingest import cfbd                 # <- uses your existing wrapper (schedule endpoint)
-from cfmp.weather.nws import hourly_forecast_many  # optional weather batching
+# project ingest
+from cfmp.ingest import cfbd as cfbd_ingest
 
-# -----------------------------
-# Constants / config
-# -----------------------------
-LOCAL_TZ = ZoneInfo("America/Chicago")
-CACHE_FILE = ".cache/venues.parquet"
-RUNS_DIR = Path("runs")
-RUNS_DIR.mkdir(exist_ok=True)
+# optional weather import (kept off by default in CI to save time)
+try:
+    from cfmp.weather.nws import hourly_forecast_many  # type: ignore
+except Exception:
+    hourly_forecast_many = None  # pragma: no cover
 
-# -----------------------------
-# Helpers
-# -----------------------------
-def _to_int(x: Any) -> int | None:
+
+LOCAL_TZ = ZoneInfo(os.getenv("TZ") or "America/Chicago")
+CACHE_FILE = Path(".cache/venues.parquet")
+
+
+# ---------------------------
+# helpers
+# ---------------------------
+
+def _to_int(x: Any) -> Optional[int]:
     try:
         return int(x)
-    except (TypeError, ValueError):
+    except Exception:
         return None
 
-def gval(g: Dict[str, Any], *keys: str) -> Any:
-    """Get the first non-empty value among keys from dict g."""
-    for k in keys:
-        if k in g and g[k] not in (None, "", []):
-            return g[k]
-    return None
 
 def pick_year_week() -> Tuple[int, int]:
-    """
-    Determine target year/week.
-    Priority:
-      1) CFB_YEAR / CFB_WEEK env
-      2) Local ISO week as fallback
-    """
-    now = datetime.now(LOCAL_TZ)
-    year = _to_int(os.getenv("CFB_YEAR")) or now.year
-    week = _to_int(os.getenv("CFB_WEEK"))
-    if week is None:
-        week = now.isocalendar().week
-    return year, week
+    """Refuse to run unless both are supplied. Prevents silent drift to ISO week 44."""
+    y = _to_int(os.getenv("CFB_YEAR"))
+    w = _to_int(os.getenv("CFB_WEEK"))
+    if y is None or w is None:
+        raise SystemExit("CFB_YEAR and CFB_WEEK must be set (e.g., 2025 / 10)")
+    return y, w
 
-def ensure_cached_venues() -> None:
-    """
-    If you have a dedicated tool that materializes venues into .cache/venues.parquet,
-    you’ll see a log line in Actions like 'Saved 833 venues ...'. If it’s already there,
-    we just reuse it.
-    """
-    Path(".cache").mkdir(exist_ok=True)
-    # If your pipeline elsewhere writes to CACHE_FILE, do nothing here.
 
-def load_cached_venues() -> Dict[int, Dict[str, Any]]:
-    """Load venues parquet and index by id."""
-    if not Path(CACHE_FILE).exists():
-        return {}
-    df = pd.read_parquet(CACHE_FILE)
-    recs = df.to_dict("records")
-    out = {}
-    for r in recs:
-        vid = _to_int(r.get("id")) or _to_int(r.get("venue_id"))
-        if vid is None:
-            continue
-        out[vid] = r
-    return out
+def gval(d: Optional[dict], *keys: str) -> Optional[Any]:
+    if not d:
+        return None
+    for k in keys:
+        if k in d and d[k] not in (None, ""):
+            return d[k]
+    return None
 
-def venue_from_record(g: Dict[str, Any], VENUES: Dict[int, Dict[str, Any]]) -> Tuple[str | None, int | None, float | None, float | None]:
-    """
-    Resolve venue fields from a schedule game record + cached venues.
-    Returns (venue_name, venue_id, lat, lon)
-    """
-    vid = _to_int(gval(g, "venue_id", "venueId"))
-    vname = gval(g, "venue", "venue_name")
-    vlat = None
-    vlon = None
 
-    if vid and vid in VENUES:
-        v = VENUES[vid]
-        vname = vname or v.get("name")
-        vlat = v.get("latitude")
-        vlon = v.get("longitude")
-
-    # If no vid but venue name exists in cache? We won’t try an O(N) match here.
-    return vname, vid, vlat, vlon
-
-def compute_forecast_conf(kickoff_iso: str | None, now: datetime) -> float:
-    """
-    Confidence bucket based on hours to kickoff:
-      >7d        -> 0.50
-      5–7d       -> 0.70
-      3–5d       -> 0.85
-      <=48 h     -> 0.95
-    If kickoff unknown -> 0.50.
-    """
-    if not kickoff_iso:
-        return 0.50
+def parse_kickoff(start: Optional[str]) -> Optional[datetime]:
+    if not start:
+        return None
+    # CFBD uses '...Z'. Make it aware.
+    s = start.replace("Z", "+00:00")
     try:
-        dt = datetime.fromisoformat(kickoff_iso.replace("Z", "+00:00")).astimezone(LOCAL_TZ)
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
     except Exception:
-        return 0.50
+        return None
 
-    delta_h = (dt - now).total_seconds() / 3600.0
-    if delta_h <= 48:
+
+def forecast_confidence(now: datetime, kickoff: Optional[datetime]) -> float:
+    """
+    Simple confidence curve:
+      <=48h: 0.95
+      3–5d : 0.85
+      5–7d : 0.70
+      >7d  : 0.50
+      unknown kickoff: 0.50
+    """
+    if not kickoff:
+        return 0.50
+    hours = (kickoff - now).total_seconds() / 3600.0
+    if hours <= 48:
         return 0.95
-    if delta_h <= 5 * 24:
+    if hours <= 5 * 24:
         return 0.85
-    if delta_h <= 7 * 24:
+    if hours <= 7 * 24:
         return 0.70
     return 0.50
 
-def kickoff_iso_from_record(g: Dict[str, Any]) -> str | None:
-    """
-    Try typical keys CFBD returns for datetime.
-    Prefer UTC-like forms; format to 3dp with Z for CSV stability.
-    """
-    raw = gval(g, "start_date", "startDate", "kickoff", "start_time_tbd")
-    if not raw:
-        return None
-    try:
-        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-        return dt.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-    except Exception:
-        return None
 
-# -----------------------------
-# Main
-# -----------------------------
+def load_cached_venues() -> Dict[int, Dict[str, Any]]:
+    if not CACHE_FILE.exists():
+        return {}
+    df = pd.read_parquet(CACHE_FILE)
+    need = {"id", "name", "latitude", "longitude"}
+    avail = set(map(str, df.columns))
+    # tolerate different casings
+    cols = {c.lower(): c for c in df.columns}
+    got = {k for k in ("id", "name", "latitude", "longitude") if k in cols}
+    if not got:
+        return {}
+    id_col = cols.get("id")
+    out: Dict[int, Dict[str, Any]] = {}
+    for _, r in df.iterrows():
+        try:
+            vid = int(r[id_col])
+        except Exception:
+            continue
+        out[vid] = {
+            "name": r.get(cols.get("name", ""), None),
+            "latitude": r.get(cols.get("latitude", ""), None),
+            "longitude": r.get(cols.get("longitude", ""), None),
+        }
+    return out
+
+
+# ---------------------------
+# main
+# ---------------------------
+
 def main() -> None:
     year, week = pick_year_week()
     print(f"Running for {year}-W{week:02d}")
 
-    ensure_cached_venues()
-    VENUES = load_cached_venues()
+    # venues cache
+    venues = load_cached_venues()
+    if venues:
+        print(f"Loaded {len(venues)} venues from {CACHE_FILE}")
 
-    # Fetch week’s games from your cfbd wrapper
-    games = cfbd.schedule(year=year, week=week)
-    print(f"games ok: {len(games)}")
+    # fetch games from our ingest (uses CFBD_KEY env internally)
+    # NOTE: the correct function in this repo is `schedule`, not `games`.
+    games: List[dict] = cfbd_ingest.schedule(year=year, week=week)
+    print(f"Fetched {len(games)} games from CFBD")
 
-    # Build rows
-    now_local = datetime.now(LOCAL_TZ)
+    if not games:
+        raise SystemExit(f"No CFBD games found for year={year}, week={week}.")
+
+    # build rows
+    now_local = datetime.now(tz=LOCAL_TZ)
     rows: List[Dict[str, Any]] = []
-    coords_for_weather: List[Tuple[float, float]] = []
-    coord_keys: List[str] = []  # map key to row index
+
+    # pre-collect coordinates for optional weather
+    coords_for_weather: List[Tuple[float, float, int]] = []
 
     for g in games:
-        # teams
-        away = gval(g, "away", "away_team")
-        home = gval(g, "home", "home_team")
+        gid = gval(g, "id") or gval(g, "game_id")
+        start = gval(g, "startDate") or gval(g, "kickoff")
+        kickoff_dt = parse_kickoff(start)
+        kickoff_local = kickoff_dt.astimezone(LOCAL_TZ) if kickoff_dt else None
 
-        # kickoff ISO
-        kickoff_iso = kickoff_iso_from_record(g)
+        vid = gval(g, "venue_id") or gval(g, "venueId")
+        vid_int = None
+        try:
+            vid_int = int(vid) if vid is not None else None
+        except Exception:
+            vid_int = None
 
-        # venue details
-        vname, vid, vlat, vlon = venue_from_record(g, VENUES)
+        v = venues.get(vid_int, {}) if vid_int is not None else {}
 
-        # confidence
-        fconf = compute_forecast_conf(kickoff_iso, now_local)
+        lat = v.get("latitude")
+        lon = v.get("longitude")
+        try:
+            lat_f = float(lat) if lat is not None else None
+            lon_f = float(lon) if lon is not None else None
+        except Exception:
+            lat_f = lon_f = None
 
         row = {
-            "id": _to_int(gval(g, "id", "game_id", "gameId")),
+            "id": gid,
             "year": year,
             "week": week,
-            "kickoff": kickoff_iso,
-            "away": away,
-            "home": home,
-            "venue": vname,
-            "venue_id": vid,
-            "venue_lat": vlat,
-            "venue_lon": vlon,
-            "forecast_sample": None,   # filled if weather on
-            "forecast_conf": fconf,
+            "kickoff": kickoff_local.isoformat() if kickoff_local else None,
+            "away": gval(g, "away_team", "awayTeam"),
+            "home": gval(g, "home_team", "homeTeam"),
+            "venue": v.get("name"),
+            "venue_id": vid_int,
+            "venue_lat": lat_f,
+            "venue_lon": lon_f,
+            # filled later if weather is enabled
+            "forecast_sample": None,
+            "forecast_conf": forecast_confidence(now_local, kickoff_local),
         }
-        idx = len(rows)
         rows.append(row)
 
-        # schedule weather pulls only when we have coords
-        if os.getenv("CFMP_WEATHER", "").lower() == "on" and vlat is not None and vlon is not None:
-            coords_for_weather.append((float(vlat), float(vlon)))
-            coord_keys.append(str(idx))
+        if os.getenv("CFMP_WEATHER", "").lower() in {"on", "true", "1"}:
+            if lat_f is not None and lon_f is not None:
+                coords_for_weather.append((lat_f, lon_f, gid if gid is not None else -1))
 
-    # Weather batch (optional)
-    if coords_for_weather:
-        print(f"Fetching weather for {len(coords_for_weather)} venues…")
-        # concurrency tuned to be gentle; adjust if desired
-        fc_map = hourly_forecast_many(coords_for_weather, hours=6, concurrency=16)
-        # fc_map is keyed by "lat,lon" or similar. We’ll stitch by index order we sent.
-        for k, (lat, lon) in zip(coord_keys, coords_for_weather):
-            key = f"{lat:.6f},{lon:.6f}"
-            sample = fc_map.get(key)
-            if sample:
-                rows[int(k)]["forecast_sample"] = sample
-        print("weather ok")
+    # optional weather pull
+    if coords_for_weather and hourly_forecast_many is not None:
+        try:
+            # throttle defaults are fine; map back into rows by id
+            uniq = {(lat, lon) for (lat, lon, _) in coords_for_weather}
+            fc_map = hourly_forecast_many(list(uniq), hours=6, concurrency=32)
+            m = {(lat, lon): fc for (lat, lon), fc in fc_map.items()}
+            for r in rows:
+                lat = r.get("venue_lat")
+                lon = r.get("venue_lon")
+                if lat is None or lon is None:
+                    continue
+                r["forecast_sample"] = m.get((lat, lon))  # may be None
+        except Exception as e:
+            print(f"Weather step skipped due to error: {e}")
 
-    # Write outputs
-    outdir = RUNS_DIR / f"{year}-W{week:02d}"
-    outdir.mkdir(parents=True, exist_ok=True)
+    # output
+    out_dir = Path(f"runs/{year}-W{week:02d}")
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # JSON
-    jpath = outdir / "slate_preview.json"
-    with jpath.open("w", encoding="utf-8") as f:
+    # JSON preview
+    with (out_dir / "slate_preview.json").open("w", encoding="utf-8") as f:
         json.dump(rows, f, ensure_ascii=False, indent=2)
 
     # CSV
-    cpath = outdir / "slate.csv"
-    df = pd.DataFrame(rows)
-    # Keep column order stable
-    want_cols = [
-        "id", "year", "week", "kickoff",
-        "away", "home", "venue", "venue_id",
-        "venue_lat", "venue_lon", "forecast_sample",
+    cols = [
+        "id",
+        "year",
+        "week",
+        "kickoff",
+        "away",
+        "home",
+        "venue",
+        "venue_id",
+        "venue_lat",
+        "venue_lon",
+        "forecast_sample",
         "forecast_conf",
     ]
-    for col in want_cols:
-        if col not in df.columns:
-            df[col] = None
-    df = df[want_cols]
-    df.to_csv(cpath, index=False)
+    df = pd.DataFrame(rows, columns=cols)
+    df.to_csv(out_dir / "slate.csv", index=False)
+    print(f"Wrote {out_dir} with {len(rows)} rows")
 
-    print(f"Wrote {outdir} in {year}-W{week:02d}")
 
 if __name__ == "__main__":
     main()
