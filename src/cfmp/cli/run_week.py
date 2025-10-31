@@ -47,11 +47,21 @@ def pick_year_week() -> tuple[int, int]:
 
 
 def gval(g: dict, *keys):
-    """Get first present, non-empty value among keys from dict g."""
+    """Return the first valid non-empty value for any of the given keys."""
     for k in keys:
         if k in g and g[k] not in (None, ""):
             return g[k]
+    # fallback for common alternate field names
+    alt_map = {
+        "away": "away_team",
+        "home": "home_team",
+        "kickoff": "start_date",
+    }
+    for k in keys:
+        if k in alt_map and alt_map[k] in g and g[alt_map[k]] not in (None, ""):
+            return g[alt_map[k]]
     return None
+
 
 
 def load_cached_venues():
