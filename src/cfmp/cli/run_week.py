@@ -71,7 +71,7 @@ def main():
     print(f"Running for {year}-W{week}")
 
     venues = {v["id"]: v for v in load_cached_venues()}
-    games = cfbd.games(year=year, week=week)
+    games = cfbd.schedule(year=year, week=week)
     rows = []
 
     for g in games:
