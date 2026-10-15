@@ -9,3 +9,5 @@ runs/
 # ignore everything in data/ except the venues file
 data/*
 !data/venues_min.parquet
+!data/reports/
+!data/reports/**

@@ -1,0 +1,52 @@
+name: FPI reports
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Sunday 1:00pm CT and Monday 9:00am CT. The job publishes only when the
+    # week's games and snaps are both in, then commits the three CSV reports.
+    - cron: "0 18 * * 0"
+    - cron: "0 15 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  reports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        id: snaps
+        with:
+          path: |
+            data/cfbd/game_model.parquet
+            data/schedules
+          key: fpi-snaps-v1-${{ github.run_id }}
+          restore-keys: |
+            fpi-snaps-v1-
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Publish the three reports
+        env:
+          CFBD_KEY: ${{ secrets.CFBD_KEY }}
+        run: PYTHONPATH=src python3 -m cfmp.cli.fpi_report
+
+      - name: Commit reports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/reports
+          if git diff --cached --quiet; then
+            echo "No new week to publish."
+            exit 0
+          fi
+          git commit -m "Publish FPI reports"
+          git push
