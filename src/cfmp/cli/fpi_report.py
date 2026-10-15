@@ -86,11 +86,11 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         priced = priced.sort_values(["start_date", "home"])
     else:
         priced = priced.sort_values("home")
-    columns = ["away", "home", "neutral", "model", "draftkings", "dk_open", "total", "total_open", "home_ml", "away_ml", "edge"]
+    columns = ["away", "home", "dk_open", "model", "draftkings", "edge", "total", "away_ml", "home_ml"]
     if "start_date" in priced.columns:
         columns = ["start_date", *columns]
     out = priced[columns].copy()
-    for column in ("model", "draftkings", "dk_open", "total", "total_open", "edge"):
+    for column in ("dk_open", "model", "draftkings", "edge", "total"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(2)
     for column in ("home_ml", "away_ml"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(0)
