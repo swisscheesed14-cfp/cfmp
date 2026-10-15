@@ -1,16 +1,17 @@
 """Write the weekly FPI reports, then price the next unplayed slate.
 
 Rankings wait until that week's snaps are in. The price file is the next
-week's unplayed FBS games, with the DraftKings number beside the model.
-Positive numbers favor the home team. The spread price (the -110) is not
-in the feed, so the file has the number, the open, the total, and the
-moneylines.
+week's unplayed FBS games. Open is the DraftKings number from the Sunday
+run, and later runs in the week move only the current DraftKings number.
+Positive numbers favor the home team.
 """
 
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -44,6 +45,36 @@ def _write(frame: pd.DataFrame, path: Path) -> None:
     frame.to_csv(path, index=False)
 
 
+def _open_day() -> bool:
+    """Sunday locks the open. Monday does it only if Sunday never ran."""
+    return datetime.now(ZoneInfo("America/Chicago")).weekday() in (6, 0)
+
+
+def apply_open(out: pd.DataFrame, folder: Path, lock_today: bool) -> pd.DataFrame:
+    """Keep the Sunday DraftKings number. Do not use the book's original open.
+
+    A line that was blank on Sunday is filled the first time it appears,
+    then left alone while the current number keeps moving.
+    """
+    prior = folder / "prices.csv"
+    lock = folder / "open_locked.txt"
+    if lock.exists() and prior.exists():
+        saved = pd.read_csv(prior)
+        if {"away", "home", "dk_open"} <= set(saved.columns):
+            saved = saved[["away", "home", "dk_open"]].drop_duplicates(["away", "home"])
+            out = out.drop(columns=["dk_open"], errors="ignore").merge(saved, on=["away", "home"], how="left")
+    if "dk_open" not in out.columns:
+        out["dk_open"] = pd.NA
+    out["dk_open"] = pd.to_numeric(out["dk_open"], errors="coerce")
+    if lock_today or lock.exists():
+        missing = out["dk_open"].isna() & out["draftkings"].notna()
+        out.loc[missing, "dk_open"] = out.loc[missing, "draftkings"]
+        if out["dk_open"].notna().any():
+            folder.mkdir(parents=True, exist_ok=True)
+            lock.write_text("sunday", encoding="utf-8")
+    return out
+
+
 def _market(season: int, week: int) -> pd.DataFrame:
     try:
         rows = normalize_lines(fetch_lines(season, week=week, season_type="regular"))
@@ -67,15 +98,13 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     if not market.empty:
         priced["game_id"] = pd.to_numeric(priced["game_id"], errors="coerce")
         market["id"] = pd.to_numeric(market["id"], errors="coerce")
-        keep = ["id", "vegas_spread", "vegas_open", "total", "total_open", "home_ml", "away_ml"]
+        keep = ["id", "vegas_spread", "total", "home_ml", "away_ml"]
         priced = priced.merge(market[keep], left_on="game_id", right_on="id", how="left")
         priced = priced.drop(columns=["id"])
-        priced = priced.rename(columns={"vegas_spread": "draftkings", "vegas_open": "dk_open"})
+        priced = priced.rename(columns={"vegas_spread": "draftkings"})
     else:
         priced["draftkings"] = pd.NA
-        priced["dk_open"] = pd.NA
         priced["total"] = pd.NA
-        priced["total_open"] = pd.NA
         priced["home_ml"] = pd.NA
         priced["away_ml"] = pd.NA
     priced["edge"] = priced["model"] - priced["draftkings"]
@@ -89,12 +118,13 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     columns = ["away", "home", "dk_open", "model", "draftkings", "edge", "total", "away_ml", "home_ml"]
     if "start_date" in priced.columns:
         columns = ["start_date", *columns]
-    out = priced[columns].copy()
+    folder = OUT / f"{SEASON}-w{week:02d}"
+    out = apply_open(priced, folder, _open_day())
+    out = out[columns].copy()
     for column in ("dk_open", "model", "draftkings", "edge", "total"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(2)
     for column in ("home_ml", "away_ml"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(0)
-    folder = OUT / f"{SEASON}-w{week:02d}"
     _write(out, folder / "prices.csv")
     _write(out, OUT / "latest" / "prices.csv")
     (OUT / "latest" / "prices_week.txt").write_text(str(week), encoding="utf-8")
