@@ -122,7 +122,7 @@ def weather_enabled() -> bool:
 def load_cached_venues() -> tuple[Dict[int, Dict[str, Any]], Optional[Path]]:
     path = next((p for p in VENUE_FILES if p.exists()), None)
     if path is None:
-        return {}, path
+        return {}, None
     df = pd.read_parquet(path)
     cols = {c.lower(): c for c in df.columns}
     id_col = cols.get("id")
