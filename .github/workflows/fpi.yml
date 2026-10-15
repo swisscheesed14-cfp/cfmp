@@ -3,10 +3,13 @@ name: FPI reports
 on:
   workflow_dispatch:
   schedule:
-    # Sunday 1:00pm CT and Monday 9:00am CT. Rankings publish when the week
-    # is complete. The same run prices the next unplayed slate.
+    # Sunday 1:00pm CT locks the DraftKings open and prices the slate.
+    # Monday 9:00am CT publishes rankings once the snaps are in, and locks
+    # the open only if Sunday never ran. Tuesday through Saturday refresh
+    # the current DraftKings number and leave the open alone.
     - cron: "0 18 * * 0"
     - cron: "0 15 * * 1"
+    - cron: "0 16 * * 2-6"
 
 permissions:
   contents: write
