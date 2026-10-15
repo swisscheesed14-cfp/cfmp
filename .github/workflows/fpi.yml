@@ -3,8 +3,8 @@ name: FPI reports
 on:
   workflow_dispatch:
   schedule:
-    # Sunday 1:00pm CT and Monday 9:00am CT. The job publishes only when the
-    # week's games and snaps are both in, then commits the three CSV reports.
+    # Sunday 1:00pm CT and Monday 9:00am CT. Rankings publish when the week
+    # is complete. The same run prices the next unplayed slate.
     - cron: "0 18 * * 0"
     - cron: "0 15 * * 1"
 
@@ -34,7 +34,7 @@ jobs:
       - name: Install
         run: pip install -e .
 
-      - name: Publish the three reports
+      - name: Publish reports and price the next slate
         env:
           CFBD_KEY: ${{ secrets.CFBD_KEY }}
         run: PYTHONPATH=src python3 -m cfmp.cli.fpi_report
