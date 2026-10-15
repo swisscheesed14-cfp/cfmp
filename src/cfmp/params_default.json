@@ -1,0 +1,19 @@
+{
+  "learning_rate": 0.08,
+  "mov_cap": 28.0,
+  "hfa": 2.75,
+  "season_regress": 0.65,
+  "points_per_team": 28.0,
+  "short_week_points": 1.25,
+  "bye_points": 0.75,
+  "rest_cap": 2.0,
+  "travel_per_1000": 0.35,
+  "travel_free_miles": 500.0,
+  "tz_points": 0.35,
+  "qb_change_points": 2.5,
+  "weather_points": 3.0,
+  "fcs_baseline": -20.0,
+  "ii_baseline": -32.0,
+  "iii_baseline": -42.0,
+  "division_prior_games": 400.0
+}
