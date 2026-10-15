@@ -1,8 +1,10 @@
 """Write the weekly FPI reports, then price the next unplayed slate.
 
 Rankings wait until that week's snaps are in. The price file is the next
-week's unplayed FBS games, with the Vegas number beside the model when
-the line is posted. Positive numbers favor the home team.
+week's unplayed FBS games, with the DraftKings number beside the model.
+Positive numbers favor the home team. The spread price (the -110) is not
+in the feed, so the file has the number, the open, the total, and the
+moneylines.
 """
 
 from __future__ import annotations
@@ -47,14 +49,14 @@ def _market(season: int, week: int) -> pd.DataFrame:
         rows = normalize_lines(fetch_lines(season, week=week, season_type="regular"))
     except Exception as exc:
         print(f"Lines pull failed, prices will have no Vegas number: {exc}")
-        return pd.DataFrame(columns=["id", "vegas_spread"])
+        return pd.DataFrame(columns=["id", "vegas_spread", "vegas_open", "total", "total_open", "home_ml", "away_ml"])
     if not rows:
-        return pd.DataFrame(columns=["id", "vegas_spread"])
+        return pd.DataFrame(columns=["id", "vegas_spread", "vegas_open", "total", "total_open", "home_ml", "away_ml"])
     return pd.DataFrame(rows)
 
 
 def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_week: int) -> int | None:
-    """Price the next unplayed FBS slate. Positive model and Vegas favor the home team."""
+    """Price the next unplayed FBS slate. Positive model and DraftKings favor the home team."""
     slate = next_slate(schedule, SEASON, through_week)
     if slate.empty:
         print("No unplayed slate to price.")
@@ -65,11 +67,18 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     if not market.empty:
         priced["game_id"] = pd.to_numeric(priced["game_id"], errors="coerce")
         market["id"] = pd.to_numeric(market["id"], errors="coerce")
-        priced = priced.merge(market[["id", "vegas_spread"]], left_on="game_id", right_on="id", how="left")
+        keep = ["id", "vegas_spread", "vegas_open", "total", "total_open", "home_ml", "away_ml"]
+        priced = priced.merge(market[keep], left_on="game_id", right_on="id", how="left")
         priced = priced.drop(columns=["id"])
+        priced = priced.rename(columns={"vegas_spread": "draftkings", "vegas_open": "dk_open"})
     else:
-        priced["vegas_spread"] = pd.NA
-    priced["edge"] = priced["model"] - priced["vegas_spread"]
+        priced["draftkings"] = pd.NA
+        priced["dk_open"] = pd.NA
+        priced["total"] = pd.NA
+        priced["total_open"] = pd.NA
+        priced["home_ml"] = pd.NA
+        priced["away_ml"] = pd.NA
+    priced["edge"] = priced["model"] - priced["draftkings"]
     if "start_date" in slate.columns:
         kick = slate[["game_id", "start_date"]].drop_duplicates("game_id")
         kick["game_id"] = pd.to_numeric(kick["game_id"], errors="coerce")
@@ -77,18 +86,20 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         priced = priced.sort_values(["start_date", "home"])
     else:
         priced = priced.sort_values("home")
-    columns = ["away", "home", "neutral", "model", "vegas_spread", "edge"]
+    columns = ["away", "home", "neutral", "model", "draftkings", "dk_open", "total", "total_open", "home_ml", "away_ml", "edge"]
     if "start_date" in priced.columns:
         columns = ["start_date", *columns]
     out = priced[columns].copy()
-    for column in ("model", "vegas_spread", "edge"):
+    for column in ("model", "draftkings", "dk_open", "total", "total_open", "edge"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(2)
+    for column in ("home_ml", "away_ml"):
+        out[column] = pd.to_numeric(out[column], errors="coerce").round(0)
     folder = OUT / f"{SEASON}-w{week:02d}"
     _write(out, folder / "prices.csv")
     _write(out, OUT / "latest" / "prices.csv")
     (OUT / "latest" / "prices_week.txt").write_text(str(week), encoding="utf-8")
-    covered = int(out["vegas_spread"].notna().sum())
-    print(f"Priced {len(out)} week {week} games ({covered} with a Vegas number) -> {folder / 'prices.csv'}")
+    covered = int(out["draftkings"].notna().sum())
+    print(f"Priced {len(out)} week {week} games ({covered} with a DraftKings number) -> {folder / 'prices.csv'}")
     return week
 
 
