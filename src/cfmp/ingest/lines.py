@@ -1,4 +1,4 @@
-"""Closing spreads from CFBD. The number is the exam, never a model input.
+"""DraftKings spreads from CFBD. The number is the exam, never a model input.
 
 CFBD stores the home-team spread, negative when the home team is favored.
 We store the home margin instead, so +7 means the same thing as our site spread.
@@ -17,45 +17,46 @@ from cfmp.ingest.results import FIRST_SEASON, season_year
 LINES_PATH = Path("data/lines.parquet")
 
 
-def _floats(values: list[Any]) -> list[float]:
-    out: list[float] = []
-    for value in values:
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            continue
-        if number == number:
-            out.append(number)
-    return out
-
-
-def _median(values: list[float]) -> float | None:
-    if not values:
+def _one(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
         return None
-    ordered = sorted(values)
-    mid = len(ordered) // 2
-    if len(ordered) % 2:
-        return ordered[mid]
-    return (ordered[mid - 1] + ordered[mid]) / 2.0
+    if number != number:
+        return None
+    return number
+
+
+def _draftkings(books: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for book in books:
+        if str(book.get("provider") or "").lower() == "draftkings" and _one(book.get("spread")) is not None:
+            return book
+    return None
 
 
 def normalize_lines(payload: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One row per game. The spread is DraftKings, not a blend of books.
+
+    CFBD's home spread is negative when the home team is favored. We flip it
+    so a positive number means the home team is favored.
+    """
     rows: list[dict[str, Any]] = []
     for game in payload:
-        books = game.get("lines") or []
-        spreads = _floats([book.get("spread") for book in books])
-        opens = _floats([book.get("spreadOpen") for book in books])
-        close = _median(spreads)
-        opened = _median(opens)
-        if close is None and opened is None:
+        book = _draftkings(game.get("lines") or [])
+        if book is None:
             continue
+        close = _one(book.get("spread"))
+        opened = _one(book.get("spreadOpen"))
         rows.append(
             {
                 "id": game.get("id"),
-                # Positive means the home team is favored, matching site_spread.
+                "book": "DraftKings",
                 "vegas_spread": None if close is None else -close,
                 "vegas_open": None if opened is None else -opened,
-                "n_books": len(spreads),
+                "total": _one(book.get("overUnder")),
+                "total_open": _one(book.get("overUnderOpen")),
+                "home_ml": _one(book.get("homeMoneyline")),
+                "away_ml": _one(book.get("awayMoneyline")),
             }
         )
     return rows
