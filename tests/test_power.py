@@ -103,11 +103,16 @@ def test_lines_and_quarterbacks_parse() -> None:
     lines = normalize_lines([{
         "id": 9,
         "lines": [
-            {"provider": "DraftKings", "spread": -7.0, "spreadOpen": -3.5},
+            {"provider": "DraftKings", "spread": -7.0, "spreadOpen": -3.5, "overUnder": 55.5, "overUnderOpen": 53.5, "homeMoneyline": -270, "awayMoneyline": 220},
             {"provider": "FanDuel", "spread": -6.0, "spreadOpen": -4.5},
         ],
     }])
-    assert lines[0]["vegas_spread"] == 6.5  # negative home spread means home is favored
+    assert lines[0]["book"] == "DraftKings"
+    assert lines[0]["vegas_spread"] == 7.0
+    assert lines[0]["vegas_open"] == 3.5
+    assert lines[0]["total"] == 55.5
+    assert lines[0]["home_ml"] == -270
+    assert normalize_lines([{"id": 10, "lines": [{"provider": "FanDuel", "spread": -6.0}]}]) == []
     players = normalize_players([{
         "id": 9,
         "teams": [
