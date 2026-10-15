@@ -1,132 +1,131 @@
-# src/cfmp/ingest/results.py
+"""Historical results shaped for the Elo trainer.
+
+Uses the same httpx client as the weekly slate. The old `cfbd` SDK is not a
+dependency and its column names (`home_team`) did not match `train_elo`.
+"""
+
 from __future__ import annotations
 
-import os
-import sys
 import json
-from dataclasses import asdict, dataclass, field, is_dataclass
-from datetime import date, datetime
-from typing import Any, Dict, Iterable, List, Optional
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-import cfbd  # CollegeFootballData SDK
+import pandas as pd
 
-from cfmp.config import SETTINGS
+from cfmp.ingest.cfbd import schedule
 
-
-# ---- CFBD client -------------------------------------------------------------
-
-def get_cfbd_client() -> cfbd.GamesApi:
-    """
-    Return an authenticated GamesApi client. Uses SETTINGS.cfbd_key from .env.
-    We set `access_token` so the SDK sends `Authorization: Bearer <key>`.
-    """
-    cfg = cfbd.Configuration()
-    cfg.access_token = SETTINGS.cfbd_key  # <-- correct way to send Bearer token
-    return cfbd.GamesApi(cfbd.ApiClient(cfg))
+RESULTS_DIR = Path("data/results")
+FIRST_SEASON = 2014
 
 
-# ---- Helpers -----------------------------------------------------------------
-
-def to_iso(v: Any) -> Any:
-    """Convert datetime/date to ISO string, leave everything else as-is."""
-    if isinstance(v, (datetime, date)):
-        return v.isoformat()
-    return v
+def season_year(now: datetime | None = None) -> int:
+    now = now or datetime.now()
+    return now.year if now.month >= 3 else now.year - 1
 
 
-def normalize(obj: Any) -> Any:
-    """
-    Recursively convert dataclasses and objects to JSON-serializable dicts.
-    - datetimes -> ISO strings
-    - cfbd models -> dict via __dict__ filtering private attrs and callables
-    - lists/tuples/dicts handled recursively
-    """
-    if obj is None:
-        return None
-    if isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-    if isinstance(obj, (list, tuple)):
-        return [normalize(x) for x in obj]
-    if isinstance(obj, dict):
-        return {k: normalize(v) for k, v in obj.items()}
-    if is_dataclass(obj):
-        return normalize(asdict(obj))
-    # cfbd model objects are plain objects; filter __dict__
-    if hasattr(obj, "__dict__"):
-        d = {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
-        return normalize(d)
-    return obj
+def _points(game: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in game and game[key] is not None:
+            return game[key]
+    return None
 
 
-def ensure_dir(path: str) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-
-def save_jsonl(path: str, rows: Iterable[Dict[str, Any]]) -> None:
-    ensure_dir(path)
-    with open(path, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(normalize(r), separators=(",", ":")) + "\n")
-
-
-# ---- Ingest logic ------------------------------------------------------------
-
-def fetch_year(y: int) -> List[Dict[str, Any]]:
-    api = get_cfbd_client()
-    # Pull both regular + postseason
-    games = api.get_games(year=y, season_type="both")  # returns list[Game]
-    rows: List[Dict[str, Any]] = []
-
-    for g in games:
-        # Keep completed games; keep scheduled too if you want a full ledger.
-        # Here we write everything and rely on None for points if not played.
+def games_to_results(games: list[dict[str, Any]], year: int) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for game in games:
+        home = game.get("homeTeam") or game.get("home_team") or game.get("home")
+        away = game.get("awayTeam") or game.get("away_team") or game.get("away")
+        if not home or not away:
+            continue
+        neutral = game.get("neutralSite")
+        if neutral is None:
+            neutral = game.get("neutral_site")
         rows.append(
             {
-                "season": y,
-                "week": getattr(g, "week", None),
-                "id": getattr(g, "id", None),
-                "start_date": getattr(g, "start_date", None) or getattr(g, "start_time", None),
-                "home_team": getattr(g, "home_team", None),
-                "away_team": getattr(g, "away_team", None),
-                "home_points": getattr(g, "home_points", None),
-                "away_points": getattr(g, "away_points", None),
-                "neutral_site": getattr(g, "neutral_site", None),
-                "conference_game": getattr(g, "conference_game", None),
-                "venue": getattr(g, "venue", None),
-                "venue_id": getattr(g, "venue_id", None),
-                "home_conference": getattr(g, "home_conference", None),
-                "away_conference": getattr(g, "away_conference", None),
-                # Keep original object flattened for anything else you might need
-                # without risking non-serializable types.
+                "season": game.get("season") or year,
+                "week": game.get("week"),
+                "start_date": game.get("startDate") or game.get("start_date"),
+                "neutral_site": bool(neutral),
+                "home": home,
+                "away": away,
+                "home_points": _points(game, "homePoints", "home_points"),
+                "away_points": _points(game, "awayPoints", "away_points"),
+                "id": game.get("id"),
+                "venue": game.get("venue"),
+                "venue_id": game.get("venueId") if "venueId" in game else game.get("venue_id"),
+                "season_type": game.get("seasonType") or game.get("season_type"),
+                "home_classification": game.get("homeClassification") or game.get("home_classification"),
+                "away_classification": game.get("awayClassification") or game.get("away_classification"),
             }
         )
     return rows
 
 
-def write_year(y: int, rows: List[Dict[str, Any]]) -> None:
-    out = f"data/results/{y}.jsonl"
-    save_jsonl(out, rows)
+def fetch_year(year: int) -> list[dict[str, Any]]:
+    return games_to_results(schedule(year, season_type="both"), year)
 
 
-# ---- CLI ---------------------------------------------------------------------
+def _jsonl_path(year: int) -> Path:
+    return RESULTS_DIR / f"{year}.jsonl"
 
-def main(argv: List[str]) -> None:
-    # Default: current and previous year if none provided
+
+def write_year(year: int, rows: list[dict[str, Any]]) -> None:
+    path = _jsonl_path(year)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, separators=(",", ":")) + "\n")
+
+
+def read_year(year: int) -> list[dict[str, Any]]:
+    path = _jsonl_path(year)
+    rows: list[dict[str, Any]] = []
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                rows.append(json.loads(line))
+    return rows
+
+
+def ensure_results(years: list[int], dest: Path, refresh_year: int | None = None) -> Path:
+    """Fetch missing seasons, always refresh `refresh_year`, write one parquet."""
+    frames: list[pd.DataFrame] = []
+    for year in years:
+        path = _jsonl_path(year)
+        if year == refresh_year or not path.exists():
+            rows = fetch_year(year)
+            write_year(year, rows)
+            print(f"Fetched {len(rows)} games for {year}")
+        else:
+            rows = read_year(year)
+            if rows and "home_classification" not in rows[0]:
+                rows = fetch_year(year)
+                write_year(year, rows)
+                print(f"Refetched {len(rows)} games for {year} to record division")
+        frames.append(pd.DataFrame(rows))
+    df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(dest, index=False)
+    print(f"Wrote {len(df)} games -> {dest}")
+    return dest
+
+
+def main(argv: list[str] | None = None) -> None:
+    argv = list(sys.argv if argv is None else argv)
     if len(argv) > 1:
-        years = [int(a) for a in argv[1:]]
+        years = [int(arg) for arg in argv[1:]]
     else:
-        now = datetime.now()
-        years = [now.year - 1, now.year]
-
-    print(f"Fetching results for years: {years}")
-    for y in years:
-        rows = fetch_year(y)
-        write_year(y, rows)
-        print(f"Wrote {len(rows)} rows to data/results/{y}.jsonl")
+        end = season_year()
+        years = list(range(FIRST_SEASON, end + 1))
+    dest = Path("data/results_all.parquet")
+    ensure_results(years, dest, refresh_year=max(years))
 
 
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        main()
     except KeyboardInterrupt:
         sys.exit(130)
