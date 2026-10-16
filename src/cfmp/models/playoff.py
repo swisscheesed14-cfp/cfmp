@@ -21,7 +21,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from cfmp.models.season import cap_if_both_good, sample_trust
+from cfmp.models.season import cap_if_both_good
 
 POWER = ("ACC", "Big Ten", "Big 12", "SEC")
 GROUP = ("American Athletic", "Conference USA", "Mid-American", "Mountain West", "Pac-12", "Sun Belt")
@@ -295,11 +295,10 @@ def _spread(
     week: int,
     names: list[str],
 ) -> float:
-    """Home field is full. The rating gap shrinks when the shorter sample is small."""
+    """Home field is full. The matchup is the full rating gap."""
     home_rating = FCS_FPI if home is None else float(rating[home])
     away_rating = FCS_FPI if away is None else float(rating[away])
-    trust = sample_trust(_sample(played_before, names, home, week), _sample(played_before, names, away, week))
-    return (0.0 if neutral else hfa) + trust * (home_rating - away_rating)
+    return (0.0 if neutral else hfa) + (home_rating - away_rating)
 
 
 def _cap_sides(spread: float, home: int | None, away: int | None, rating: np.ndarray) -> float:

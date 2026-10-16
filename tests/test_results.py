@@ -35,9 +35,8 @@ def test_the_worst_miss_is_first_and_the_rates_are_the_week() -> None:
 
 def test_a_game_is_each_offense_against_the_other_defense() -> None:
     # Home gains 10 and allows 4. Away gains 6 and allows 8.
-    # The matchup is (10 - 8) minus (6 - 4), not each team's own offense minus its own defense.
-    assert _edge(10, 4, 6, 8, False) == 0
-    assert _edge(10, 4, 6, 8, True) == (4 - 10) - (8 - 6)
+    # Home's edge is its own production plus the opponent's leak, not a subtraction that cancels both.
+    assert _edge(10, 4, 6, 8, False) == (10 + 8) - (6 + 4)
     assert round(sample_trust(4, 5), 3) == round(4 / 12, 3)
     # Both well above average, so 14 points becomes 10.
     assert cap_if_both_good(14, 18, 12) == 10

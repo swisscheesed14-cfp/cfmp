@@ -69,14 +69,15 @@ class Weights:
 
 
 def _edge(home_off: float, home_def: float, away_off: float, away_def: float, hurts_offense: bool) -> float:
-    """Home offense against the away defense, minus the reverse.
+    """What the home offense does to that defense, minus the reverse.
 
-    Defense columns are what you allow, except stuff, sacks, and takeaways,
-    where a higher number helps the defense.
+    A leaky defense is added to the opposing offense, not subtracted.
+    Higher defensive numbers are yards or rates allowed, except stuff,
+    sacks, and takeaways, where a higher number helps the defense.
     """
     if hurts_offense:
-        return (home_def - home_off) - (away_def - away_off)
-    return (home_off - away_def) - (away_off - home_def)
+        return (home_def - away_off) - (away_def - home_off)
+    return (home_off + away_def) - (away_off + home_def)
 
 
 def entering_profile(team_games: pd.DataFrame) -> pd.DataFrame:
@@ -143,9 +144,9 @@ def _design(games: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, list[str]]:
         away_off = pd.to_numeric(games[f"in_{off}_away"], errors="coerce")
         away_def = pd.to_numeric(games[f"in_{deff}_away"], errors="coerce")
         if hurts:
-            value = (home_def - home_off) - (away_def - away_off)
+            value = (home_def - away_off) - (away_def - home_off)
         else:
-            value = (home_off - away_def) - (away_off - home_def)
+            value = (home_off + away_def) - (away_off + home_def)
         filled = value.fillna(value.median())
         if not np.isfinite(filled.to_numpy(dtype=float)).any():
             filled = pd.Series(0.0, index=value.index)
@@ -210,14 +211,14 @@ def _score_means(offense: pd.DataFrame, defense: pd.DataFrame, weights: Weights 
     rating = np.full(len(offense), weights.intercept)
     for coef, (off, deff, hurts) in zip(weights.coef, STATS):
         if hurts:
+            # Home pressure against the away offense, versus the reverse, against an average team.
             team_net = defense[deff].fillna(league_def[deff]) - offense[off].fillna(league_off[off])
             league_net = league_def[deff] - league_off[off]
             rating = rating + coef * (team_net.to_numpy() - league_net)
         else:
-            # Against an average opponent this is the same matchup used to price a game.
-            offense_vs_average = offense[off].fillna(league_off[off]) - league_def[deff]
-            average_vs_defense = league_off[off] - defense[deff].fillna(league_def[deff])
-            rating = rating + coef * (offense_vs_average.to_numpy() - average_vs_defense.to_numpy())
+            offense_above = offense[off].fillna(league_off[off]) - league_off[off]
+            defense_above = league_def[deff] - defense[deff].fillna(league_def[deff])
+            rating = rating + coef * (offense_above.to_numpy() + defense_above.to_numpy())
     return pd.Series(rating, index=offense.index)
 
 
@@ -299,9 +300,9 @@ def rate_season(profile: pd.DataFrame, weights: Weights, min_games: int = MIN_CU
             league_net = league_def[deff] - league_off[off]
             rating = rating + coef * (team_net - league_net)
         else:
-            offense_vs_average = board[off] - league_def[deff]
-            average_vs_defense = league_off[off] - board[deff]
-            rating = rating + coef * (offense_vs_average - average_vs_defense)
+            offense_above = board[off] - league_off[off]
+            defense_above = league_def[deff] - board[deff]
+            rating = rating + coef * (offense_above + defense_above)
     board["rating"] = rating
     board = board.sort_values("rating", ascending=False)
     return board
@@ -384,7 +385,8 @@ def cap_if_both_good(spread: float, home_fpi: float, away_fpi: float) -> float:
 def price_slate(slate: pd.DataFrame, profile: pd.DataFrame, weights: Weights) -> pd.DataFrame:
     """Home spread for each game. Positive means the home team is favored.
 
-    Home field is full. The FPI gap is scaled by the shorter sample.
+    The gap is the full matchup. Home field is added on top. Two good teams
+    are capped later, after the crowd and the weather.
     """
     ratings = rate_season(profile, weights, min_games=1)
     rows = []
@@ -398,7 +400,6 @@ def price_slate(slate: pd.DataFrame, profile: pd.DataFrame, weights: Weights) ->
         neutral = bool(getattr(game, "neutral_site", False))
         home_fpi = float(ratings.at[home_name, "rating"])
         away_fpi = float(ratings.at[away_name, "rating"])
-        trust = sample_trust(float(profile.at[home_name, "games"]), float(profile.at[away_name, "games"]))
         hfa = 0.0 if neutral else weights.hfa
         rows.append(
             {
@@ -409,7 +410,7 @@ def price_slate(slate: pd.DataFrame, profile: pd.DataFrame, weights: Weights) ->
                 "neutral": neutral,
                 "home_fpi": home_fpi,
                 "away_fpi": away_fpi,
-                "model": hfa + trust * (home_fpi - away_fpi),
+                "model": hfa + (home_fpi - away_fpi),
             }
         )
     return pd.DataFrame(rows)
