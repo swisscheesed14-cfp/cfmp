@@ -73,9 +73,30 @@ jobs:
           card=$(ls data/reports/latest/Week*Matchups.csv)
           file=$(basename "$card")
           week=$(printf '%s' "$file" | sed -E 's/Week([0-9]+)Matchups.csv/\1/')
+          result=$(ls data/reports/latest/Week*Results.csv 2>/dev/null || true)
+          attach="data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,$card,data/reports/latest/playoff.csv"
+          extra=""
+          if [ -n "$result" ]; then
+            attach="$attach,$result"
+            extra="$(basename "$result") is last week's graded card. closer_rate is how often the model beat DraftKings. cover_rate is how often the model's side covered."
+          fi
           echo "path=$card" >> "$GITHUB_OUTPUT"
           echo "file=$file" >> "$GITHUB_OUTPUT"
           echo "subject=Week ${week} Ranks and Spreads" >> "$GITHUB_OUTPUT"
+          echo "attachments=$attach" >> "$GITHUB_OUTPUT"
+          {
+            echo "body<<EOF"
+            echo "The files are attached."
+            echo "fpi_top25.csv is the top 25."
+            echo "fpi.csv is every team."
+            echo "sos.csv is every team's schedule strength."
+            echo "$file is the weekly card. A positive number favors the home team."
+            echo "playoff.csv is the chance each team makes the 12-team field."
+            if [ -n "$extra" ]; then
+              echo "$extra"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Email the reports
         if: steps.mail.outputs.ready == 'true'
@@ -89,12 +110,6 @@ jobs:
           from: FPI reports <swisscheesed14@gmail.com>
           to: swisscheesed14@gmail.com
           subject: ${{ steps.card.outputs.subject }}
-          body: |
-            Five files are attached.
-            fpi_top25.csv is the top 25.
-            fpi.csv is every team.
-            sos.csv is every team's schedule strength.
-            ${{ steps.card.outputs.file }} is the weekly card. A positive number favors the home team.
-            playoff.csv is the chance each team makes the 12-team field.
-          attachments: data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,${{ steps.card.outputs.path }},data/reports/latest/playoff.csv
+          body: ${{ steps.card.outputs.body }}
+          attachments: ${{ steps.card.outputs.attachments }}
 

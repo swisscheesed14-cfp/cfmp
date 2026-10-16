@@ -3,13 +3,19 @@
 Home field is a crowd edge, not a dome edge. Weather is applied by the caller.
 Travel and rest are separate so a normal Saturday does not get double-counted
 with home field: only a short week, a bye, or a genuinely long trip moves the number.
+The league home number stays in the rating. Crowd, size, and kickoff time
+only move it by about a point.
 """
 
 from __future__ import annotations
 
 import math
 
+import pandas as pd
+
 from cfmp.models.params import PowerParams
+
+CROWD_CAP = 1.5
 
 
 def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -82,3 +88,76 @@ def qb_penalty(games_since_change: int | None, params: PowerParams) -> float:
 
 def qb_adjustment(home_since: int | None, away_since: int | None, params: PowerParams) -> float:
     return qb_penalty(away_since, params) - qb_penalty(home_since, params)
+
+
+def kick_period(start: object) -> str:
+    """Night, early, or the middle of the day, from a UTC kickoff."""
+    text = str(start or "")
+    if "T" not in text:
+        return "day"
+    try:
+        hour = int(text.split("T", 1)[1][:2])
+    except ValueError:
+        return "day"
+    if hour >= 23 or hour <= 3:
+        return "night"
+    if hour <= 17:
+        return "early"
+    return "day"
+
+
+def crowd_points(fill: float | None, capacity: float | None, period: str) -> float:
+    """Extra home points on top of the league number. Capped at a point and a half.
+
+    How full the building usually is matters more than the number of seats.
+    Night is a small bump. Noon is a small cut. Home wins are not an input.
+    """
+    extra = 0.0
+    if fill is not None and math.isfinite(fill):
+        extra += (fill - 0.80) * 2.0
+    if capacity is not None and math.isfinite(capacity):
+        if capacity >= 80000:
+            extra += 0.40
+        elif capacity >= 65000:
+            extra += 0.25
+    if period == "night":
+        extra += 0.40
+    elif period == "early":
+        extra -= 0.25
+    return max(-CROWD_CAP, min(CROWD_CAP, extra))
+
+
+def home_edges(schedule: pd.DataFrame, season: int) -> pd.Series:
+    """Extra home points for each game this season. Neutral sites stay at zero.
+
+    Capacity is the most people that venue has held in this file. The fill
+    rate is that team's own crowd, this year when they have played at home
+    twice, otherwise last year too.
+    """
+    frame = schedule.copy()
+    if "attendance" not in frame.columns or "venue_id" not in frame.columns:
+        return pd.Series(dtype=float)
+    frame["game_id"] = pd.to_numeric(frame["game_id"], errors="coerce")
+    frame["attendance"] = pd.to_numeric(frame["attendance"], errors="coerce")
+    frame["venue_id"] = pd.to_numeric(frame["venue_id"], errors="coerce")
+    caps = frame.groupby("venue_id")["attendance"].max()
+    history = frame[frame["season"].between(season - 1, season) & frame["attendance"].gt(0)]
+    typical: dict[str, tuple[float, float]] = {}
+    for team, games in history.groupby("home_team"):
+        venue = games["venue_id"].mode()
+        if venue.empty:
+            continue
+        capacity = caps.get(venue.iloc[0])
+        if capacity is None or not math.isfinite(float(capacity)) or float(capacity) < 15000:
+            continue
+        this_year = games[games["season"] == season]
+        sample = this_year if len(this_year) >= 2 else games
+        typical[str(team)] = (float(sample["attendance"].median() / float(capacity)), float(capacity))
+    extras = {}
+    for row in frame[frame["season"] == season].itertuples(index=False):
+        if bool(getattr(row, "neutral_site", False)):
+            extras[row.game_id] = 0.0
+            continue
+        fill, capacity = typical.get(str(row.home_team), (None, None))
+        extras[row.game_id] = crowd_points(fill, capacity, kick_period(getattr(row, "start_date", None)))
+    return pd.Series(extras, dtype=float)

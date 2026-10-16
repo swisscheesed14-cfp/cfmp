@@ -93,6 +93,7 @@ def playoff_odds(
     season_dock: pd.Series | None = None,
     week_dock: pd.Series | None = None,
     dock_week: int | None = None,
+    crowd: pd.Series | None = None,
 ) -> pd.DataFrame:
     """Share of simulations in which each team makes the 12-team field."""
     games = schedule.loc[schedule["season"] == season].copy()
@@ -106,6 +107,13 @@ def playoff_odds(
     if season_dock is not None:
         rating = rating - np.array([float(season_dock.get(name, 0.0)) for name in names])
     week_penalty = np.zeros(teams) if week_dock is None else np.array([float(week_dock.get(name, 0.0)) for name in names])
+    crowd_map = {}
+    if crowd is not None:
+        for key, value in crowd.items():
+            try:
+                crowd_map[int(key)] = float(value)
+            except (TypeError, ValueError):
+                continue
     conference = {}
     for row in games.itertuples(index=False):
         if str(row.home_division).lower() == "fbs":
@@ -168,6 +176,11 @@ def playoff_odds(
             apply_result(home, away, row.home_points > row.away_points, counts)
             continue
         spread = _spread(home, away, rating, hfa, bool(row.neutral_site))
+        if not bool(row.neutral_site):
+            try:
+                spread += crowd_map.get(int(row.game_id), 0.0)
+            except (TypeError, ValueError):
+                pass
         if dock_week is not None and int(row.week) == dock_week:
             spread += _side(week_penalty, away) - _side(week_penalty, home)
         item = (home, away, win_chance(spread, residual_sd), counts, int(row.week))

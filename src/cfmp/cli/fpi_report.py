@@ -31,6 +31,8 @@ from cfmp.models.season import (
 )
 from cfmp.models.availability import quarterback_docks
 from cfmp.models.playoff import playoff_odds
+from cfmp.models.results import grade_card
+from cfmp.models.site import home_edges
 from cfmp.models.weather import apply_kickoff_weather
 
 SEASON = 2026
@@ -51,6 +53,11 @@ def _write(frame: pd.DataFrame, path: Path) -> None:
 def _open_day() -> bool:
     """Sunday locks the open. Monday does it only if Sunday never ran."""
     return datetime.now(ZoneInfo("America/Chicago")).weekday() in (6, 0)
+
+
+def result_name(week: int) -> str:
+    """The graded card. Week 6 is Week6Results.csv."""
+    return f"Week{int(week)}Results.csv"
 
 
 def card_name(week: int) -> str:
@@ -115,6 +122,10 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     if not docks.empty:
         now = docks.set_index("team")["now"]
         priced["model"] = priced["model"] - priced["home"].map(now).fillna(0) + priced["away"].map(now).fillna(0)
+    edges = home_edges(schedule, SEASON)
+    if not edges.empty:
+        edges.index = pd.to_numeric(edges.index, errors="coerce")
+        priced["model"] = priced["model"] + pd.to_numeric(priced["game_id"], errors="coerce").map(edges).fillna(0)
     market = _market(SEASON, week)
     if not market.empty:
         priced["game_id"] = pd.to_numeric(priced["game_id"], errors="coerce")
@@ -190,7 +201,7 @@ def publish_boards(profile: pd.DataFrame, weights, week: int, dock: pd.Series) -
     print(f"FPI Top 25, FPI, and SOS through week {week} -> {folder}")
 
 
-def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week: int, docks: pd.DataFrame) -> None:
+def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week: int, docks: pd.DataFrame, crowd: pd.Series | None = None) -> None:
     """Playoff odds from the games still left. Written on every run, not just Mondays."""
     ratings = fpi_board(profile, weights, min_games=1).set_index("team")["fpi"]
     rest = docks.set_index("team")["rest"] if not docks.empty else pd.Series(dtype=float)
@@ -204,13 +215,49 @@ def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week
         weights.residual_sd,
         SEASON,
         season_dock=rest,
-        week_dock=this_week.clip(lower=0),
+        week_dock=this_week,
         dock_week=dock_week,
+        crowd=crowd,
     )
     folder = OUT / f"{SEASON}-w{week:02d}"
     _write(odds, folder / "playoff.csv")
     _write(odds, OUT / "latest" / "playoff.csv")
     print(f"Playoff odds through week {week} -> {folder / 'playoff.csv'}")
+
+
+def publish_results(schedule: pd.DataFrame, week: int) -> None:
+    """Grade the card that was saved before this week kicked off."""
+    folder = OUT / f"{SEASON}-w{week:02d}"
+    path = _prior_card(folder)
+    if path is None:
+        print(f"No saved card for week {week}, so there is nothing to grade.")
+        return
+    card = pd.read_csv(path)
+    info = schedule.loc[schedule["season"] == SEASON].copy()
+    info = info[pd.to_numeric(info["week"], errors="coerce") == week]
+    info = info[info["home_points"].notna() & info["away_points"].notna()]
+    played = pd.DataFrame(
+        {
+            "away": info["away_team"].to_numpy(),
+            "home": info["home_team"].to_numpy(),
+            "actual": (info["home_points"] - info["away_points"]).to_numpy(),
+        }
+    )
+    graded = grade_card(card, played)
+    if graded.empty:
+        print(f"Week {week} card has no final scores yet.")
+        return
+    name = result_name(week)
+    _write(graded, folder / name)
+    latest = OUT / "latest"
+    for stale in latest.glob("Week*Results.csv"):
+        if stale.name != name:
+            stale.unlink()
+    _write(graded, latest / name)
+    print(
+        f"Week {week} results -> {folder / name} "
+        f"(closer {graded['closer_rate'].iloc[0]}%, covered {graded['cover_rate'].iloc[0]}%)"
+    )
 
 
 def main() -> None:
@@ -224,16 +271,18 @@ def main() -> None:
     games = game_table(schedule, snaps)
     weights = fit_weights(games, train_through=SEASON - 1)
     profile = _current_means(snaps, schedule, SEASON, weights, through_week=week)
-    docks = quarterback_docks(schedule, SEASON)
+    docks = quarterback_docks(schedule, SEASON, snaps, weights, profile)
     if docks.empty:
         print("No starting quarterback is ruled out.")
     else:
         print(docks.to_string(index=False))
-    now = docks.set_index("team")["now"] if not docks.empty else pd.Series(dtype=float)
-    publish_boards(profile, weights, week, now)
+    rest = docks.set_index("team")["rest"] if not docks.empty else pd.Series(dtype=float)
+    crowd = home_edges(schedule, SEASON)
+    publish_boards(profile, weights, week, rest)
     (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
+    publish_results(schedule, week)
     price_next(schedule, profile, weights, week, docks)
-    publish_playoff(schedule, profile, weights, week, docks)
+    publish_playoff(schedule, profile, weights, week, docks, crowd)
 
 
 if __name__ == "__main__":
