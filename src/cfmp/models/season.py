@@ -8,6 +8,7 @@ The 2026 top 25 uses 2026 games only.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -38,6 +39,14 @@ STATS = (
     ("tfl_allowed", "def_tfl", True),
 )
 MIN_PRIOR = 3
+# How many games the roster is worth before this year's box score takes over.
+# Two is what 2024 and 2025 games supported. More than that made the old seasons worse.
+ROSTER_GAMES = 2.0
+# Points per 100 of roster talent, and per 1.0 of returning production. Fit on 2015-2023.
+TALENT_POINTS = 4.15
+RETURNING_POINTS = 7.62
+TALENT_PATH = Path("data/cfbd/talent.parquet")
+RETURNING_PATH = Path("data/cfbd/returning.parquet")
 MIN_CURRENT = 4
 SHRINK_GAMES = 3
 SIMS = 4000
@@ -285,7 +294,32 @@ def _current_means(
     profile = pd.concat([games, offense, defense], axis=1)
     profile["sos"] = sos
     profile["fbs"] = True
+    profile["season"] = season
     return profile
+
+
+def blend_rating(box: float, roster: float, games: float) -> float:
+    """This year's results, pulled toward the roster while the sample is short."""
+    weight = float(games) / (float(games) + ROSTER_GAMES)
+    return weight * float(box) + (1.0 - weight) * float(roster)
+
+
+def _roster_points(teams: pd.Index, season: int) -> pd.Series:
+    """Talent plus returning production, in points versus an average roster."""
+    points = pd.Series(0.0, index=teams)
+    if TALENT_PATH.exists():
+        talent = pd.read_parquet(TALENT_PATH)
+        talent = talent[talent["year"].astype(int) == season].drop_duplicates("team").set_index("team")["talent"]
+        known = pd.to_numeric(talent.reindex(teams), errors="coerce").dropna()
+        if len(known) > 10:
+            points = points.add((known - known.mean()) / 100.0 * TALENT_POINTS, fill_value=0.0)
+    if RETURNING_PATH.exists():
+        returning = pd.read_parquet(RETURNING_PATH)
+        returning = returning[returning["season"].astype(int) == season].drop_duplicates("team").set_index("team")["percentPPA"]
+        known = pd.to_numeric(returning.reindex(teams), errors="coerce").dropna()
+        if len(known) > 10:
+            points = points.add((known - known.mean()) * RETURNING_POINTS, fill_value=0.0)
+    return points.reindex(teams).fillna(0.0)
 
 
 def rate_season(profile: pd.DataFrame, weights: Weights, min_games: int = MIN_CURRENT) -> pd.DataFrame:
@@ -304,6 +338,12 @@ def rate_season(profile: pd.DataFrame, weights: Weights, min_games: int = MIN_CU
             defense_above = league_def[deff] - board[deff]
             rating = rating + coef * (offense_above + defense_above)
     board["rating"] = rating
+    if "season" in board.columns and len(board):
+        roster = _roster_points(board.index, int(board["season"].iloc[0]))
+        board["rating"] = [
+            blend_rating(box, prior, games)
+            for box, prior, games in zip(board["rating"], roster.to_numpy(), board["games"].to_numpy())
+        ]
     board = board.sort_values("rating", ascending=False)
     return board
 

@@ -4,7 +4,7 @@ import pandas as pd
 
 from cfmp.models.availability import blend_dock, prior_dock
 from cfmp.models.results import grade_card, week_rates
-from cfmp.models.season import _edge, cap_if_both_good, sample_trust
+from cfmp.models.season import _edge, blend_rating, cap_if_both_good, sample_trust
 from cfmp.models.season import Weights
 from cfmp.models.site import crowd_points, kick_period
 import numpy as np
@@ -37,6 +37,8 @@ def test_a_game_is_each_offense_against_the_other_defense() -> None:
     # Home gains 10 and allows 4. Away gains 6 and allows 8.
     # Home's edge is its own production plus the opponent's leak, not a subtraction that cancels both.
     assert _edge(10, 4, 6, 8, False) == (10 + 8) - (6 + 4)
+    # Five games in, two games of roster: the box score is five sevenths of the rating.
+    assert round(blend_rating(16.0, 11.0, 5), 2) == round(5 / 7 * 16 + 2 / 7 * 11, 2)
     assert round(sample_trust(4, 5), 3) == round(4 / 12, 3)
     # Both well above average, so 14 points becomes 10.
     assert cap_if_both_good(14, 18, 12) == 10
