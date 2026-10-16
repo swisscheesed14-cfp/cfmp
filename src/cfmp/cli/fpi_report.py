@@ -291,7 +291,7 @@ def publish_results(schedule: pd.DataFrame, snaps: pd.DataFrame, weights, week: 
     _write(rates, latest / rates_file)
     print(
         f"Week {week} results -> {folder / name} "
-        f"(closer {rates['closer_rate'].iloc[0]}%, covered {rates['cover_rate'].iloc[0]}%)"
+        f"(closer {rates['closer_than_dk'].iloc[0]}%, covered {rates['cover_rate'].iloc[0]}%)"
     )
 
 

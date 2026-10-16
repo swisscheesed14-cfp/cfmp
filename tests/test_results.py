@@ -29,7 +29,7 @@ def test_the_worst_miss_is_first_and_the_rates_are_the_week() -> None:
     assert graded.iloc[0]["closer"] == "model"
     assert bool(graded.iloc[0]["covered"]) is True
     rates = week_rates(graded)
-    assert rates.closer_rate.iloc[0] == 50.0
+    assert rates.closer_than_dk.iloc[0] == 50.0
     assert rates.cover_rate.iloc[0] == 50.0
 
 

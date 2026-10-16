@@ -55,7 +55,7 @@ def week_rates(graded: pd.DataFrame) -> pd.DataFrame:
         [
             {
                 "games": int(len(graded)),
-                "closer_rate": None if closer is None else round(100.0 * closer, 1),
+                "closer_than_dk": None if closer is None else round(100.0 * closer, 1),
                 "cover_rate": None if cover is None else round(100.0 * cover, 1),
             }
         ]
