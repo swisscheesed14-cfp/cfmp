@@ -70,9 +70,12 @@ jobs:
       - name: Name the card
         id: card
         run: |
-          card=$(ls data/reports/latest/Week*Matchups.csv | head -1)
+          card=$(ls data/reports/latest/Week*Matchups.csv)
+          file=$(basename "$card")
+          week=$(printf '%s' "$file" | sed -E 's/Week([0-9]+)Matchups.csv/\1/')
           echo "path=$card" >> "$GITHUB_OUTPUT"
-          echo "file=$(basename "$card")" >> "$GITHUB_OUTPUT"
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+          echo "subject=Week ${week} Ranks and Spreads" >> "$GITHUB_OUTPUT"
 
       - name: Email the reports
         if: steps.mail.outputs.ready == 'true'
@@ -85,7 +88,7 @@ jobs:
           password: ${{ secrets.MAIL_PASSWORD }}
           from: FPI reports <swisscheesed14@gmail.com>
           to: swisscheesed14@gmail.com
-          subject: FPI reports
+          subject: ${{ steps.card.outputs.subject }}
           body: |
             Five files are attached.
             fpi_top25.csv is the top 25.
