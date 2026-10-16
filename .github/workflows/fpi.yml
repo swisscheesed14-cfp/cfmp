@@ -80,10 +80,11 @@ jobs:
           to: swisscheesed14@gmail.com
           subject: FPI reports
           body: |
-            Four files are attached.
+            Five files are attached.
             fpi_top25.csv is the top 25.
             fpi.csv is every team.
             sos.csv is every team's schedule strength.
             prices.csv is the weekly card. A positive number favors the home team.
-          attachments: data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,data/reports/latest/prices.csv
+            playoff.csv is the chance each team makes the 12-team field.
+          attachments: data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,data/reports/latest/prices.csv,data/reports/latest/playoff.csv
 

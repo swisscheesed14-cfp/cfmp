@@ -29,6 +29,7 @@ from cfmp.models.season import (
     sos_board,
     top25,
 )
+from cfmp.models.playoff import playoff_odds
 from cfmp.models.weather import apply_kickoff_weather
 
 SEASON = 2026
@@ -135,6 +136,16 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     return week
 
 
+def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week: int) -> None:
+    """Playoff odds from the games still left. Written on every run, not just Mondays."""
+    ratings = fpi_board(profile, weights, min_games=1).set_index("team")["fpi"]
+    odds = playoff_odds(schedule, ratings, weights.hfa, weights.residual_sd, SEASON)
+    folder = OUT / f"{SEASON}-w{week:02d}"
+    _write(odds, folder / "playoff.csv")
+    _write(odds, OUT / "latest" / "playoff.csv")
+    print(f"Playoff odds through week {week} -> {folder / 'playoff.csv'}")
+
+
 def main() -> None:
     refresh()
     snaps = pd.read_parquet(SNAPS)
@@ -163,6 +174,7 @@ def main() -> None:
     else:
         print(f"Week {week} reports are already published.")
     price_next(schedule, profile, weights, week)
+    publish_playoff(schedule, profile, weights, week)
 
 
 if __name__ == "__main__":
