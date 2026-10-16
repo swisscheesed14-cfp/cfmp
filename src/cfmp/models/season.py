@@ -69,14 +69,14 @@ class Weights:
 
 
 def _edge(home_off: float, home_def: float, away_off: float, away_def: float, hurts_offense: bool) -> float:
-    """Home's net advantage. Defense columns are 'what you allow' except stuff, where higher is better."""
+    """Home offense against the away defense, minus the reverse.
+
+    Defense columns are what you allow, except stuff, sacks, and takeaways,
+    where a higher number helps the defense.
+    """
     if hurts_offense:
-        home_net = home_def - home_off
-        away_net = away_def - away_off
-    else:
-        home_net = home_off - home_def
-        away_net = away_off - away_def
-    return home_net - away_net
+        return (home_def - home_off) - (away_def - away_off)
+    return (home_off - away_def) - (away_off - home_def)
 
 
 def entering_profile(team_games: pd.DataFrame) -> pd.DataFrame:
@@ -145,7 +145,7 @@ def _design(games: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, list[str]]:
         if hurts:
             value = (home_def - home_off) - (away_def - away_off)
         else:
-            value = (home_off - home_def) - (away_off - away_def)
+            value = (home_off - away_def) - (away_off - home_def)
         filled = value.fillna(value.median())
         if not np.isfinite(filled.to_numpy(dtype=float)).any():
             filled = pd.Series(0.0, index=value.index)
@@ -212,10 +212,12 @@ def _score_means(offense: pd.DataFrame, defense: pd.DataFrame, weights: Weights 
         if hurts:
             team_net = defense[deff].fillna(league_def[deff]) - offense[off].fillna(league_off[off])
             league_net = league_def[deff] - league_off[off]
+            rating = rating + coef * (team_net.to_numpy() - league_net)
         else:
-            team_net = offense[off].fillna(league_off[off]) - defense[deff].fillna(league_def[deff])
-            league_net = league_off[off] - league_def[deff]
-        rating = rating + coef * (team_net.to_numpy() - league_net)
+            # Against an average opponent this is the same matchup used to price a game.
+            offense_vs_average = offense[off].fillna(league_off[off]) - league_def[deff]
+            average_vs_defense = league_off[off] - defense[deff].fillna(league_def[deff])
+            rating = rating + coef * (offense_vs_average.to_numpy() - average_vs_defense.to_numpy())
     return pd.Series(rating, index=offense.index)
 
 
@@ -295,10 +297,11 @@ def rate_season(profile: pd.DataFrame, weights: Weights, min_games: int = MIN_CU
         if hurts:
             team_net = board[deff] - board[off]
             league_net = league_def[deff] - league_off[off]
+            rating = rating + coef * (team_net - league_net)
         else:
-            team_net = board[off] - board[deff]
-            league_net = league_off[off] - league_def[deff]
-        rating = rating + coef * (team_net - league_net)
+            offense_vs_average = board[off] - league_def[deff]
+            average_vs_defense = league_off[off] - board[deff]
+            rating = rating + coef * (offense_vs_average - average_vs_defense)
     board["rating"] = rating
     board = board.sort_values("rating", ascending=False)
     return board
