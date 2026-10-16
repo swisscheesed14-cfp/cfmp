@@ -1,13 +1,13 @@
 rank,team,fpi,games,qb
 1,Alabama,18.571,6,0.0
 2,Notre Dame,17.437,6,0.0
-3,Georgia,15.037,5,0.0
-4,Ohio State,14.436,6,0.0
-5,LSU,14.022,5,0.0
-6,Indiana,13.418,5,0.0
-7,Texas,12.294,5,0.0
-8,Miami,11.807,4,0.0
-9,UCLA,11.199,5,4.0
+3,UCLA,15.199,5,0.0
+4,Georgia,15.037,5,0.0
+5,Ohio State,14.436,6,0.0
+6,LSU,14.022,5,0.0
+7,Indiana,13.418,5,0.0
+8,Texas,12.294,5,0.0
+9,Miami,11.807,4,0.0
 10,Missouri,11.128,5,0.0
 11,Utah,10.261,4,0.0
 12,Houston,10.215,5,0.0
@@ -21,6 +21,6 @@ rank,team,fpi,games,qb
 20,Mississippi State,8.507,5,0.0
 21,South Carolina,8.117,5,0.0
 22,Oregon State,8.102,5,0.0
-23,Texas Tech,7.813,4,0.0
-24,Louisville,7.222,5,0.0
-25,Oregon,5.671,4,1.33
+23,Oregon,7.941,4,-0.94
+24,Texas Tech,7.813,4,0.0
+25,Louisville,7.222,5,0.0
