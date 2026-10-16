@@ -29,6 +29,7 @@ from cfmp.models.season import (
     sos_board,
     top25,
 )
+from cfmp.models.availability import quarterback_docks
 from cfmp.models.playoff import playoff_odds
 from cfmp.models.weather import apply_kickoff_weather
 
@@ -88,14 +89,19 @@ def _market(season: int, week: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_week: int) -> int | None:
+def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_week: int, docks: pd.DataFrame | None = None) -> int | None:
     """Price the next unplayed FBS slate. Positive model and DraftKings favor the home team."""
+    if docks is None:
+        docks = pd.DataFrame(columns=["team", "now"])
     slate = next_slate(schedule, SEASON, through_week)
     if slate.empty:
         print("No unplayed slate to price.")
         return None
     week = int(slate["week"].iloc[0])
     priced = price_slate(slate, profile, weights)
+    if not docks.empty:
+        now = docks.set_index("team")["now"]
+        priced["model"] = priced["model"] - priced["home"].map(now).fillna(0) + priced["away"].map(now).fillna(0)
     market = _market(SEASON, week)
     if not market.empty:
         priced["game_id"] = pd.to_numeric(priced["game_id"], errors="coerce")
@@ -136,10 +142,50 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     return week
 
 
-def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week: int) -> None:
+def _with_quarterback(board: pd.DataFrame, dock: pd.Series) -> pd.DataFrame:
+    out = board.copy()
+    out["qb"] = out["team"].map(dock).fillna(0.0)
+    out["fpi"] = (out["fpi"] - out["qb"]).round(3)
+    out["qb"] = out["qb"].round(2)
+    out = out.sort_values(["fpi", "team"], ascending=[False, True]).reset_index(drop=True)
+    out["rank"] = out.index + 1
+    return out
+
+
+def publish_boards(profile: pd.DataFrame, weights, week: int, dock: pd.Series) -> None:
+    top = _with_quarterback(top25(profile, weights)[["rank", "team", "fpi", "games"]], dock)
+    full = _with_quarterback(fpi_board(profile, weights)[["rank", "team", "fpi", "games"]], dock)
+    schedules = sos_board(profile, weights)[["rank", "team", "sos", "games"]].copy()
+    schedules["fpi"] = (
+        fpi_board(profile, weights).set_index("team")["fpi"].reindex(schedules["team"]).to_numpy()
+        - schedules["team"].map(dock).fillna(0.0).to_numpy()
+    ).round(3)
+    folder = OUT / f"{SEASON}-w{week:02d}"
+    _write(top, folder / "fpi_top25.csv")
+    _write(full, folder / "fpi.csv")
+    _write(schedules, folder / "sos.csv")
+    for name, frame in (("fpi_top25.csv", top), ("fpi.csv", full), ("sos.csv", schedules)):
+        _write(frame, OUT / "latest" / name)
+    print(f"FPI Top 25, FPI, and SOS through week {week} -> {folder}")
+
+
+def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week: int, docks: pd.DataFrame) -> None:
     """Playoff odds from the games still left. Written on every run, not just Mondays."""
     ratings = fpi_board(profile, weights, min_games=1).set_index("team")["fpi"]
-    odds = playoff_odds(schedule, ratings, weights.hfa, weights.residual_sd, SEASON)
+    rest = docks.set_index("team")["rest"] if not docks.empty else pd.Series(dtype=float)
+    this_week = docks.set_index("team")["now"] - docks.set_index("team")["rest"] if not docks.empty else pd.Series(dtype=float)
+    slate = next_slate(schedule, SEASON, week)
+    dock_week = int(slate["week"].iloc[0]) if not slate.empty else None
+    odds = playoff_odds(
+        schedule,
+        ratings,
+        weights.hfa,
+        weights.residual_sd,
+        SEASON,
+        season_dock=rest,
+        week_dock=this_week.clip(lower=0),
+        dock_week=dock_week,
+    )
     folder = OUT / f"{SEASON}-w{week:02d}"
     _write(odds, folder / "playoff.csv")
     _write(odds, OUT / "latest" / "playoff.csv")
@@ -157,24 +203,16 @@ def main() -> None:
     games = game_table(schedule, snaps)
     weights = fit_weights(games, train_through=SEASON - 1)
     profile = _current_means(snaps, schedule, SEASON, weights, through_week=week)
-    force = "--force" in sys.argv[1:]
-    stamp = OUT / "latest" / "week.txt"
-    if force or not stamp.exists() or stamp.read_text(encoding="utf-8").strip() != str(week):
-        top = top25(profile, weights)[["rank", "team", "fpi", "games"]]
-        full = fpi_board(profile, weights)[["rank", "team", "fpi", "games"]]
-        schedules = sos_board(profile, weights)[["rank", "team", "sos", "games"]]
-        folder = OUT / f"{SEASON}-w{week:02d}"
-        _write(top, folder / "fpi_top25.csv")
-        _write(full, folder / "fpi.csv")
-        _write(schedules, folder / "sos.csv")
-        for name, frame in (("fpi_top25.csv", top), ("fpi.csv", full), ("sos.csv", schedules)):
-            _write(frame, OUT / "latest" / name)
-        stamp.write_text(str(week), encoding="utf-8")
-        print(f"FPI Top 25, FPI, and SOS through week {week} -> {folder}")
+    docks = quarterback_docks(schedule, SEASON)
+    if docks.empty:
+        print("No starting quarterback is ruled out.")
     else:
-        print(f"Week {week} reports are already published.")
-    price_next(schedule, profile, weights, week)
-    publish_playoff(schedule, profile, weights, week)
+        print(docks.to_string(index=False))
+    now = docks.set_index("team")["now"] if not docks.empty else pd.Series(dtype=float)
+    publish_boards(profile, weights, week, now)
+    (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
+    price_next(schedule, profile, weights, week, docks)
+    publish_playoff(schedule, profile, weights, week, docks)
 
 
 if __name__ == "__main__":

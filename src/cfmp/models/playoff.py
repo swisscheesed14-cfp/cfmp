@@ -90,6 +90,9 @@ def playoff_odds(
     season: int = 2026,
     n: int = SIMS,
     seed: int = 7,
+    season_dock: pd.Series | None = None,
+    week_dock: pd.Series | None = None,
+    dock_week: int | None = None,
 ) -> pd.DataFrame:
     """Share of simulations in which each team makes the 12-team field."""
     games = schedule.loc[schedule["season"] == season].copy()
@@ -100,6 +103,9 @@ def playoff_odds(
     index = {name: pos for pos, name in enumerate(names)}
     teams = len(names)
     rating = np.array([float(ratings.get(name, 0.0)) for name in names])
+    if season_dock is not None:
+        rating = rating - np.array([float(season_dock.get(name, 0.0)) for name in names])
+    week_penalty = np.zeros(teams) if week_dock is None else np.array([float(week_dock.get(name, 0.0)) for name in names])
     conference = {}
     for row in games.itertuples(index=False):
         if str(row.home_division).lower() == "fbs":
@@ -162,6 +168,8 @@ def playoff_odds(
             apply_result(home, away, row.home_points > row.away_points, counts)
             continue
         spread = _spread(home, away, rating, hfa, bool(row.neutral_site))
+        if dock_week is not None and int(row.week) == dock_week:
+            spread += _side(week_penalty, away) - _side(week_penalty, home)
         item = (home, away, win_chance(spread, residual_sd), counts, int(row.week))
         if int(row.week) >= 15:
             late.append(item)
@@ -226,6 +234,12 @@ def playoff_odds(
     out = out.sort_values(["playoff", "wins", "team"], ascending=[False, False, True]).reset_index(drop=True)
     out.insert(0, "rank", out.index + 1)
     return out
+
+
+def _side(penalty: np.ndarray, side: int | None) -> float:
+    if side is None:
+        return 0.0
+    return float(penalty[side])
 
 
 def _spread(home: int | None, away: int | None, rating: np.ndarray, hfa: float, neutral: bool) -> float:

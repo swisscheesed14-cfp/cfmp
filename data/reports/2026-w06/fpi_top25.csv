@@ -1,26 +1,26 @@
-rank,team,fpi,games
-1,Alabama,18.45,6
-2,Notre Dame,17.33,6
-3,UCLA,15.09,5
-4,Georgia,14.91,5
-5,Ohio State,14.35,6
-6,LSU,13.93,5
-7,Indiana,13.32,5
-8,Texas,12.2,5
-9,Miami,11.71,4
-10,Missouri,11.01,5
-11,Utah,10.14,4
-12,Houston,10.1,5
-13,Wisconsin,9.28,4
-14,Wake Forest,9.13,6
-15,BYU,9.11,4
-16,Nebraska,9.11,5
-17,Kentucky,8.97,5
-18,Northwestern,8.43,4
-19,Ole Miss,8.41,5
-20,Mississippi State,8.39,5
-21,South Carolina,8.01,5
-22,Oregon State,7.98,5
-23,Texas Tech,7.69,4
-24,Louisville,7.11,5
-25,Oregon,6.88,4
+rank,team,fpi,games,qb
+1,Alabama,18.451,6,0.0
+2,Notre Dame,17.333,6,0.0
+3,Georgia,14.913,5,0.0
+4,Ohio State,14.35,6,0.0
+5,LSU,13.929,5,0.0
+6,Indiana,13.32,5,0.0
+7,Texas,12.201,5,0.0
+8,Miami,11.708,4,0.0
+9,UCLA,11.091,5,4.0
+10,Missouri,11.009,5,0.0
+11,Utah,10.141,4,0.0
+12,Houston,10.099,5,0.0
+13,Wisconsin,9.284,4,0.0
+14,Wake Forest,9.134,6,0.0
+15,BYU,9.115,4,0.0
+16,Nebraska,9.106,5,0.0
+17,Kentucky,8.973,5,0.0
+18,Northwestern,8.426,4,0.0
+19,Ole Miss,8.41,5,0.0
+20,Mississippi State,8.388,5,0.0
+21,South Carolina,8.014,5,0.0
+22,Oregon State,7.979,5,0.0
+23,Texas Tech,7.695,4,0.0
+24,Louisville,7.11,5,0.0
+25,Oregon,6.885,4,0.0
