@@ -1,59 +1,59 @@
 away,home,model,draftkings,actual,model_miss,dk_miss,closer,covered
-San Diego State,Oregon State,5.27,14.5,52.0,46.73,37.5,draftkings,False
-Stanford,Notre Dame,11.66,40.5,51.0,39.34,10.5,draftkings,False
-Ole Miss,Vanderbilt,0.73,-9.5,-35.0,35.73,25.5,draftkings,False
-Charlotte,North Texas,6.48,27.5,40.0,33.52,12.5,draftkings,False
-Sam Houston,Liberty,3.84,13.5,32.0,28.16,18.5,draftkings,False
-Kent State,Western Michigan,4.59,13.5,31.0,26.41,17.5,draftkings,False
-Sacramento State,Bowling Green,2.65,9.5,28.0,25.35,18.5,draftkings,False
-Minnesota,Purdue,3.8,-2.5,28.0,24.2,30.5,model,True
-Ball State,Northwestern,7.63,34.5,31.0,23.37,3.5,draftkings,True
-Arizona,West Virginia,1.65,-3.5,-21.0,22.65,17.5,draftkings,False
-Wake Forest,NC State,-1.42,-4.0,-24.0,22.58,20.0,draftkings,False
-Air Force,Northern Illinois,1.48,-7.0,-21.0,22.48,14.0,draftkings,False
-Buffalo,Toledo,7.34,18.5,-15.0,22.34,33.5,model,True
-South Carolina,Florida,2.52,10.5,-19.0,21.52,29.5,model,True
-Florida State,Louisville,2.82,4.0,24.0,21.18,20.0,draftkings,False
-Maryland,Ohio State,7.98,31.5,29.0,21.02,2.5,draftkings,True
-Iowa,Washington,3.12,3.0,-17.0,20.12,20.0,draftkings,False
-UAB,Memphis,4.96,15.5,25.0,20.04,9.5,draftkings,False
-Houston,Kansas State,0.74,2.5,-19.0,19.74,21.5,model,True
-UConn,Temple,4.69,3.5,-14.0,18.69,17.5,draftkings,False
-Nevada,UTEP,0.67,-10.0,-17.0,17.67,7.0,draftkings,False
-Missouri State,Western Kentucky,3.82,-1.5,21.0,17.18,22.5,model,True
-New Mexico State,Florida International,2.77,7.0,19.0,16.23,12.0,draftkings,False
-Southern Miss,Troy,5.54,9.5,21.0,15.46,11.5,draftkings,False
-Texas A&M,Missouri,6.12,4.5,21.0,14.88,16.5,model,True
-Central Michigan,Ohio,3.69,2.5,17.0,13.31,14.5,model,True
-Hawai'i,Arizona State,4.99,20.5,18.0,13.01,2.5,draftkings,True
-Kansas,Utah,4.47,15.5,17.0,12.53,1.5,draftkings,False
-Rice,East Carolina,4.18,10.0,16.0,11.82,6.0,draftkings,False
-USC,Penn State,3.07,-1.5,-8.0,11.07,6.5,draftkings,False
-Old Dominion,App State,3.87,8.5,-7.0,10.87,15.5,model,True
-UCF,Oklahoma State,3.28,10.5,14.0,10.72,3.5,draftkings,False
-Iowa State,BYU,4.15,11.5,14.0,9.85,2.5,draftkings,False
-South Alabama,Arkansas State,2.77,3.0,-7.0,9.77,10.0,model,True
-Georgia,Alabama,5.88,2.5,-3.0,8.88,5.5,draftkings,False
-Tennessee,Arkansas,1.08,-13.5,-7.0,8.08,6.5,draftkings,True
-Wyoming,San José State,4.83,4.5,-3.0,7.83,7.5,draftkings,False
-Coastal Carolina,Marshall,1.66,4.5,-6.0,7.66,10.5,model,True
-North Carolina,Pittsburgh,3.23,3.5,-4.0,7.23,7.5,model,True
-Boise State,Fresno State,-0.04,-8.5,-7.0,6.96,1.5,draftkings,True
-Tulsa,Navy,2.08,3.0,8.0,5.92,5.0,draftkings,False
-Miami (OH),Massachusetts,4.85,-6.0,-1.0,5.85,5.0,draftkings,True
-Washington State,Utah State,6.48,4.0,1.0,5.48,3.0,draftkings,False
-Texas,Oklahoma,-1.96,-7.5,3.0,4.96,10.5,model,True
-North Dakota State,UNLV,1.29,-3.0,6.0,4.71,9.0,model,True
-Indiana,Nebraska,1.42,-9.5,-3.0,4.42,6.5,model,True
-Virginia Tech,California,0.83,-11.5,5.0,4.17,16.5,model,True
-James Madison,Georgia Southern,0.94,-7.0,-3.0,3.94,4.0,model,True
-Jacksonville State,Kennesaw State,2.88,-3.0,-1.0,3.88,2.0,draftkings,True
-Illinois,Michigan State,2.8,-2.5,-1.0,3.8,1.5,draftkings,True
-Eastern Michigan,Akron,1.35,-4.5,-2.0,3.35,2.5,draftkings,True
-UCLA,Oregon,1.33,10.0,-2.0,3.33,12.0,model,True
-South Florida,UTSA,4.44,5.5,7.0,2.56,1.5,draftkings,False
-Louisiana,Louisiana Tech,2.52,3.0,1.0,1.52,2.0,model,True
-Duke,Georgia Tech,1.83,-4.5,3.0,1.17,7.5,model,True
-LSU,Kentucky,1.49,-9.5,1.0,0.49,10.5,model,True
-Syracuse,Virginia,2.86,14.0,3.0,0.14,11.0,model,True
-Tulane,Army,2.89,5.5,3.0,0.11,2.5,model,True
+San Diego State,Oregon State,2.84,14.5,52.0,49.16,37.5,draftkings,False
+Stanford,Notre Dame,5.36,40.5,51.0,45.64,10.5,draftkings,False
+Charlotte,North Texas,1.87,27.5,40.0,38.13,12.5,draftkings,False
+Ole Miss,Vanderbilt,0.23,-9.5,-35.0,35.23,25.5,draftkings,False
+Sam Houston,Liberty,1.84,13.5,32.0,30.16,18.5,draftkings,False
+Kent State,Western Michigan,1.71,13.5,31.0,29.29,17.5,draftkings,False
+Ball State,Northwestern,3.1,34.5,31.0,27.9,3.5,draftkings,True
+Minnesota,Purdue,1.56,-2.5,28.0,26.44,30.5,model,True
+Maryland,Ohio State,3.64,31.5,29.0,25.36,2.5,draftkings,True
+UAB,Memphis,0.74,15.5,25.0,24.26,9.5,draftkings,False
+Sacramento State,Bowling Green,3.86,9.5,28.0,24.14,18.5,draftkings,False
+Wake Forest,NC State,0.1,-4.0,-24.0,24.1,20.0,draftkings,False
+Arizona,West Virginia,1.82,-3.5,-21.0,22.82,17.5,draftkings,False
+Florida State,Louisville,1.32,4.0,24.0,22.68,20.0,draftkings,False
+Air Force,Northern Illinois,1.54,-7.0,-21.0,22.54,14.0,draftkings,False
+South Carolina,Florida,2.58,10.5,-19.0,21.58,29.5,model,True
+Houston,Kansas State,1.38,2.5,-19.0,20.38,21.5,model,True
+Missouri State,Western Kentucky,0.86,-1.5,21.0,20.14,22.5,model,True
+Iowa,Washington,2.02,3.0,-17.0,19.02,20.0,model,True
+Nevada,UTEP,1.28,-10.0,-17.0,18.28,7.0,draftkings,False
+Southern Miss,Troy,2.85,9.5,21.0,18.15,11.5,draftkings,False
+Buffalo,Toledo,3.03,18.5,-15.0,18.03,33.5,model,True
+Texas A&M,Missouri,3.53,4.5,21.0,17.47,16.5,draftkings,False
+New Mexico State,Florida International,2.22,7.0,19.0,16.78,12.0,draftkings,False
+UConn,Temple,1.01,3.5,-14.0,15.01,17.5,model,True
+Hawai'i,Arizona State,3.05,20.5,18.0,14.95,2.5,draftkings,True
+Kansas,Utah,2.12,15.5,17.0,14.88,1.5,draftkings,False
+Central Michigan,Ohio,3.07,2.5,17.0,13.93,14.5,model,True
+Rice,East Carolina,2.9,10.0,16.0,13.1,6.0,draftkings,False
+UCF,Oklahoma State,2.01,10.5,14.0,11.99,3.5,draftkings,False
+Iowa State,BYU,2.79,11.5,14.0,11.21,2.5,draftkings,False
+Old Dominion,App State,4.16,8.5,-7.0,11.16,15.5,model,True
+USC,Penn State,1.88,-1.5,-8.0,9.88,6.5,draftkings,False
+Tennessee,Arkansas,0.7,-13.5,-7.0,7.7,6.5,draftkings,True
+Boise State,Fresno State,0.04,-8.5,-7.0,7.04,1.5,draftkings,True
+Tulsa,Navy,0.97,3.0,8.0,7.03,5.0,draftkings,False
+Coastal Carolina,Marshall,1.02,4.5,-6.0,7.02,10.5,model,True
+North Carolina,Pittsburgh,2.86,3.5,-4.0,6.86,7.5,model,True
+South Alabama,Arkansas State,-0.26,3.0,-7.0,6.74,10.0,model,True
+Georgia,Alabama,2.81,2.5,-3.0,5.81,5.5,draftkings,False
+Indiana,Nebraska,2.53,-9.5,-3.0,5.53,6.5,model,True
+North Dakota State,UNLV,1.35,-3.0,6.0,4.65,9.0,model,True
+Virginia Tech,California,0.57,-11.5,5.0,4.43,16.5,model,True
+James Madison,Georgia Southern,1.41,-7.0,-3.0,4.41,4.0,draftkings,True
+South Florida,UTSA,2.7,5.5,7.0,4.3,1.5,draftkings,False
+UCLA,Oregon,1.7,10.0,-2.0,3.7,12.0,model,True
+Jacksonville State,Kennesaw State,2.61,-3.0,-1.0,3.61,2.0,draftkings,True
+Eastern Michigan,Akron,1.6,-4.5,-2.0,3.6,2.5,draftkings,True
+Illinois,Michigan State,2.57,-2.5,-1.0,3.57,1.5,draftkings,True
+Wyoming,San José State,0.39,4.5,-3.0,3.39,7.5,model,True
+Texas,Oklahoma,-0.09,-7.5,3.0,3.09,10.5,model,True
+Miami (OH),Massachusetts,1.79,-6.0,-1.0,2.79,5.0,model,True
+Duke,Georgia Tech,1.11,-4.5,3.0,1.89,7.5,model,True
+Washington State,Utah State,2.59,4.0,1.0,1.59,3.0,model,True
+LSU,Kentucky,2.49,-9.5,1.0,1.49,10.5,model,True
+Louisiana,Louisiana Tech,2.21,3.0,1.0,1.21,2.0,model,True
+Syracuse,Virginia,2.08,14.0,3.0,0.92,11.0,model,True
+Tulane,Army,3.27,5.5,3.0,0.27,2.5,model,True
