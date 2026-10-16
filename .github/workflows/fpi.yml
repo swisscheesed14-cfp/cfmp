@@ -54,3 +54,36 @@ jobs:
           fi
           git commit -m "Publish FPI reports"
           git push
+
+      - name: Check mail secret
+        id: mail
+        env:
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        run: |
+          if [ -n "$MAIL_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "MAIL_PASSWORD is not set. Email skipped."
+          fi
+
+      - name: Email the reports
+        if: steps.mail.outputs.ready == 'true'
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: swisscheesed14@gmail.com
+          password: ${{ secrets.MAIL_PASSWORD }}
+          from: FPI reports <swisscheesed14@gmail.com>
+          to: swisscheesed14@gmail.com
+          subject: FPI reports
+          body: |
+            Four files are attached.
+            fpi_top25.csv is the top 25.
+            fpi.csv is every team.
+            sos.csv is every team's schedule strength.
+            prices.csv is the weekly card. A positive number favors the home team.
+          attachments: data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,data/reports/latest/prices.csv
+
