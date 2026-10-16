@@ -1,0 +1,59 @@
+away,home,model,draftkings,actual,model_miss,dk_miss,closer,covered,closer_rate,cover_rate
+San Diego State,Oregon State,9.51,14.5,52.0,42.49,37.5,draftkings,False,44.8,55.2
+Buffalo,Toledo,18.82,18.5,-15.0,33.82,33.5,draftkings,False,44.8,55.2
+Ole Miss,Vanderbilt,-2.82,-9.5,-35.0,32.18,25.5,draftkings,False,44.8,55.2
+Sam Houston,Liberty,6.1,13.5,32.0,25.9,18.5,draftkings,False,44.8,55.2
+Charlotte,North Texas,14.32,27.5,40.0,25.68,12.5,draftkings,False,44.8,55.2
+Stanford,Notre Dame,25.73,40.5,51.0,25.27,10.5,draftkings,False,44.8,55.2
+Sacramento State,Bowling Green,2.8,9.5,28.0,25.2,18.5,draftkings,False,44.8,55.2
+Kent State,Western Michigan,7.56,13.5,31.0,23.44,17.5,draftkings,False,44.8,55.2
+UConn,Temple,9.15,3.5,-14.0,23.15,17.5,draftkings,False,44.8,55.2
+Minnesota,Purdue,5.28,-2.5,28.0,22.72,30.5,model,True,44.8,55.2
+Florida State,Louisville,1.72,4.0,24.0,22.28,20.0,draftkings,False,44.8,55.2
+Arizona,West Virginia,-0.19,-3.5,-21.0,20.81,17.5,draftkings,False,44.8,55.2
+South Carolina,Florida,1.8,10.5,-19.0,20.8,29.5,model,True,44.8,55.2
+Iowa,Washington,3.43,3.0,-17.0,20.43,20.0,draftkings,False,44.8,55.2
+Air Force,Northern Illinois,-2.05,-7.0,-21.0,18.95,14.0,draftkings,False,44.8,55.2
+New Mexico State,Florida International,1.99,7.0,19.0,17.01,12.0,draftkings,False,44.8,55.2
+UAB,Memphis,9.43,15.5,25.0,15.57,9.5,draftkings,False,44.8,55.2
+Georgia,Alabama,12.31,2.5,-3.0,15.31,5.5,draftkings,False,44.8,55.2
+Missouri State,Western Kentucky,6.2,-1.5,21.0,14.8,22.5,model,True,44.8,55.2
+Wake Forest,NC State,-9.8,-4.0,-24.0,14.2,20.0,model,True,44.8,55.2
+Old Dominion,App State,6.13,8.5,-7.0,13.13,15.5,model,True,44.8,55.2
+Houston,Kansas State,-6.14,2.5,-19.0,12.86,21.5,model,True,44.8,55.2
+Washington State,Utah State,13.5,4.0,1.0,12.5,3.0,draftkings,False,44.8,55.2
+Ball State,Northwestern,18.87,34.5,31.0,12.13,3.5,draftkings,True,44.8,55.2
+Central Michigan,Ohio,5.07,2.5,17.0,11.93,14.5,model,True,44.8,55.2
+Wyoming,San José State,8.66,4.5,-3.0,11.66,7.5,draftkings,False,44.8,55.2
+Miami (OH),Massachusetts,10.55,-6.0,-1.0,11.55,5.0,draftkings,True,44.8,55.2
+Nevada,UTEP,-5.45,-10.0,-17.0,11.55,7.0,draftkings,False,44.8,55.2
+USC,Penn State,3.32,-1.5,-8.0,11.32,6.5,draftkings,False,44.8,55.2
+South Alabama,Arkansas State,2.56,3.0,-7.0,9.56,10.0,model,True,44.8,55.2
+Maryland,Ohio State,19.65,31.5,29.0,9.35,2.5,draftkings,True,44.8,55.2
+Southern Miss,Troy,12.21,9.5,21.0,8.79,11.5,model,True,44.8,55.2
+Texas A&M,Missouri,12.23,4.5,21.0,8.77,16.5,model,True,44.8,55.2
+Virginia Tech,California,-3.75,-11.5,5.0,8.75,16.5,model,True,44.8,55.2
+UCF,Oklahoma State,5.25,10.5,14.0,8.75,3.5,draftkings,False,44.8,55.2
+Kansas,Utah,8.65,15.5,17.0,8.35,1.5,draftkings,False,44.8,55.2
+North Dakota State,UNLV,-2.21,-3.0,6.0,8.21,9.0,model,True,44.8,55.2
+Texas,Oklahoma,-5.19,-7.5,3.0,8.19,10.5,model,True,44.8,55.2
+North Carolina,Pittsburgh,3.73,3.5,-4.0,7.73,7.5,draftkings,False,44.8,55.2
+Hawai'i,Arizona State,10.52,20.5,18.0,7.48,2.5,draftkings,True,44.8,55.2
+Rice,East Carolina,8.76,10.0,16.0,7.24,6.0,draftkings,False,44.8,55.2
+Tulsa,Navy,1.01,3.0,8.0,6.99,5.0,draftkings,False,44.8,55.2
+Iowa State,BYU,7.36,11.5,14.0,6.64,2.5,draftkings,False,44.8,55.2
+Coastal Carolina,Marshall,-0.96,4.5,-6.0,5.04,10.5,model,True,44.8,55.2
+Tennessee,Arkansas,-2.33,-13.5,-7.0,4.67,6.5,model,True,44.8,55.2
+Duke,Georgia Tech,-0.59,-4.5,3.0,3.59,7.5,model,True,44.8,55.2
+Jacksonville State,Kennesaw State,2.2,-3.0,-1.0,3.2,2.0,draftkings,True,44.8,55.2
+Illinois,Michigan State,1.87,-2.5,-1.0,2.87,1.5,draftkings,True,44.8,55.2
+LSU,Kentucky,-0.95,-9.5,1.0,1.95,10.5,model,True,44.8,55.2
+Indiana,Nebraska,-1.39,-9.5,-3.0,1.61,6.5,model,True,44.8,55.2
+Eastern Michigan,Akron,-0.58,-4.5,-2.0,1.42,2.5,model,True,44.8,55.2
+Boise State,Fresno State,-5.8,-8.5,-7.0,1.2,1.5,model,True,44.8,55.2
+Louisiana,Louisiana Tech,2.08,3.0,1.0,1.08,2.0,model,True,44.8,55.2
+Syracuse,Virginia,2.1,14.0,3.0,0.9,11.0,model,True,44.8,55.2
+James Madison,Georgia Southern,-3.89,-7.0,-3.0,0.89,4.0,model,True,44.8,55.2
+South Florida,UTSA,7.84,5.5,7.0,0.84,1.5,model,True,44.8,55.2
+Tulane,Army,2.64,5.5,3.0,0.36,2.5,model,True,44.8,55.2
+UCLA,Oregon,-2.16,10.0,-2.0,0.16,12.0,model,True,44.8,55.2
