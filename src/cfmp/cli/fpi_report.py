@@ -29,6 +29,7 @@ from cfmp.models.season import (
     sos_board,
     top25,
 )
+from cfmp.models.weather import apply_kickoff_weather
 
 SEASON = 2026
 SNAPS = Path("data/cfbd/game_model.parquet")
@@ -107,6 +108,7 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         priced["total"] = pd.NA
         priced["home_ml"] = pd.NA
         priced["away_ml"] = pd.NA
+    priced = apply_kickoff_weather(priced, slate)
     priced["edge"] = priced["model"] - priced["draftkings"]
     if "start_date" in slate.columns:
         kick = slate[["game_id", "start_date"]].drop_duplicates("game_id")
@@ -115,13 +117,13 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         priced = priced.sort_values(["start_date", "home"])
     else:
         priced = priced.sort_values("home")
-    columns = ["away", "home", "dk_open", "model", "draftkings", "edge", "total", "away_ml", "home_ml"]
+    columns = ["away", "home", "dk_open", "model", "draftkings", "edge", "total", "away_ml", "home_ml", "weather", "forecast"]
     if "start_date" in priced.columns:
         columns = ["start_date", *columns]
     folder = OUT / f"{SEASON}-w{week:02d}"
     out = apply_open(priced, folder, _open_day())
     out = out[columns].copy()
-    for column in ("dk_open", "model", "draftkings", "edge", "total"):
+    for column in ("dk_open", "model", "draftkings", "edge", "total", "weather"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(2)
     for column in ("home_ml", "away_ml"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(0)
