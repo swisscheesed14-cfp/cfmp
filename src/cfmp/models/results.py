@@ -35,23 +35,28 @@ def grade_card(card: pd.DataFrame, played: pd.DataFrame) -> pd.DataFrame:
     closer_rate = float((games.loc[decided, "closer"] == "model").mean()) if decided.any() else None
     bets = games["covered"].notna()
     cover_rate = float(games.loc[bets, "covered"].astype(float).mean()) if bets.any() else None
-    games["closer_rate"] = None if closer_rate is None else round(100.0 * closer_rate, 1)
-    games["cover_rate"] = None if cover_rate is None else round(100.0 * cover_rate, 1)
     games = games.sort_values(["model_miss", "home"], ascending=[False, True])
-    columns = [
-        "away",
-        "home",
-        "model",
-        "draftkings",
-        "actual",
-        "model_miss",
-        "dk_miss",
-        "closer",
-        "covered",
-        "closer_rate",
-        "cover_rate",
-    ]
+    columns = ["away", "home", "model", "draftkings", "actual", "model_miss", "dk_miss", "closer", "covered"]
     out = games[columns].copy()
     for column in ("model", "draftkings", "actual", "model_miss", "dk_miss"):
         out[column] = out[column].round(2)
+    out.attrs["closer_rate"] = None if closer_rate is None else round(100.0 * closer_rate, 1)
+    out.attrs["cover_rate"] = None if cover_rate is None else round(100.0 * cover_rate, 1)
     return out.reset_index(drop=True)
+
+
+def week_rates(graded: pd.DataFrame) -> pd.DataFrame:
+    """One row. The two rates are not repeated on every game."""
+    decided = graded["closer"].isin(["model", "draftkings"]) if "closer" in graded.columns else pd.Series(dtype=bool)
+    bets = graded["covered"].notna() if "covered" in graded.columns else pd.Series(dtype=bool)
+    closer = float((graded.loc[decided, "closer"] == "model").mean()) if decided.any() else None
+    cover = float(graded.loc[bets, "covered"].astype(float).mean()) if bets.any() else None
+    return pd.DataFrame(
+        [
+            {
+                "games": int(len(graded)),
+                "closer_rate": None if closer is None else round(100.0 * closer, 1),
+                "cover_rate": None if cover is None else round(100.0 * cover, 1),
+            }
+        ]
+    )

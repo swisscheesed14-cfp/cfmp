@@ -20,6 +20,7 @@ from cfmp.ingest.lines import normalize_lines
 from cfmp.ingest.snaps import SCHEDULE_DIR, refresh
 from cfmp.models.season import (
     _current_means,
+    cap_if_both_good,
     fit_weights,
     fpi_board,
     game_table,
@@ -31,7 +32,7 @@ from cfmp.models.season import (
 )
 from cfmp.models.availability import quarterback_docks
 from cfmp.models.playoff import playoff_odds
-from cfmp.models.results import grade_card
+from cfmp.models.results import grade_card, week_rates
 from cfmp.models.site import home_edges
 from cfmp.models.weather import apply_kickoff_weather
 
@@ -58,6 +59,23 @@ def _open_day() -> bool:
 def result_name(week: int) -> str:
     """The graded card. Week 6 is Week6Results.csv."""
     return f"Week{int(week)}Results.csv"
+
+
+def rate_name(week: int) -> str:
+    """The week's two rates. Week 6 is Week6Rates.csv."""
+    return f"Week{int(week)}Rates.csv"
+
+
+def _cap_model(priced: pd.DataFrame) -> pd.DataFrame:
+    """Last step. Two good teams cannot finish more than 10 points apart."""
+    if priced.empty or "home_fpi" not in priced.columns:
+        return priced
+    out = priced.copy()
+    out["model"] = [
+        cap_if_both_good(float(margin), float(home), float(away))
+        for margin, home, away in zip(out["model"], out["home_fpi"], out["away_fpi"], strict=True)
+    ]
+    return out
 
 
 def card_name(week: int) -> str:
@@ -140,6 +158,7 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         priced["home_ml"] = pd.NA
         priced["away_ml"] = pd.NA
     priced = apply_kickoff_weather(priced, slate)
+    priced = _cap_model(priced)
     priced["edge"] = priced["model"] - priced["draftkings"]
     if "start_date" in slate.columns:
         kick = slate[["game_id", "start_date"]].drop_duplicates("game_id")
@@ -256,16 +275,23 @@ def publish_results(schedule: pd.DataFrame, snaps: pd.DataFrame, weights, week: 
     if graded.empty:
         print(f"Week {week} card has no final scores yet.")
         return
+    rates = week_rates(graded)
     name = result_name(week)
+    rates_file = rate_name(week)
     _write(graded, folder / name)
+    _write(rates, folder / rates_file)
     latest = OUT / "latest"
     for stale in latest.glob("Week*Results.csv"):
         if stale.name != name:
             stale.unlink()
+    for stale in latest.glob("Week*Rates.csv"):
+        if stale.name != rates_file:
+            stale.unlink()
     _write(graded, latest / name)
+    _write(rates, latest / rates_file)
     print(
         f"Week {week} results -> {folder / name} "
-        f"(closer {graded['closer_rate'].iloc[0]}%, covered {graded['cover_rate'].iloc[0]}%)"
+        f"(closer {rates['closer_rate'].iloc[0]}%, covered {rates['cover_rate'].iloc[0]}%)"
     )
 
 
@@ -285,6 +311,7 @@ def _card_from_prior_week(schedule: pd.DataFrame, snaps: pd.DataFrame, weights, 
     if not edges.empty:
         edges.index = pd.to_numeric(edges.index, errors="coerce")
         priced["model"] = priced["model"] + pd.to_numeric(priced["game_id"], errors="coerce").map(edges).fillna(0)
+    priced = _cap_model(priced)
     market = _market(SEASON, week)
     if not market.empty:
         priced["game_id"] = pd.to_numeric(priced["game_id"], errors="coerce")

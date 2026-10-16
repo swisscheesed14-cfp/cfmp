@@ -74,11 +74,16 @@ jobs:
           file=$(basename "$card")
           week=$(printf '%s' "$file" | sed -E 's/Week([0-9]+)Matchups.csv/\1/')
           result=$(ls data/reports/latest/Week*Results.csv 2>/dev/null || true)
+          rates=$(ls data/reports/latest/Week*Rates.csv 2>/dev/null || true)
           attach="data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,$card,data/reports/latest/playoff.csv"
           extra=""
           if [ -n "$result" ]; then
             attach="$attach,$result"
-            extra="$(basename "$result") is last week's graded card. closer_rate is how often the model beat DraftKings. cover_rate is how often the model's side covered."
+            extra="$(basename "$result") is last week's graded card."
+          fi
+          if [ -n "$rates" ]; then
+            attach="$attach,$rates"
+            extra="$extra $(basename "$rates") is how often the model was closer than DraftKings, and how often its side covered."
           fi
           echo "path=$card" >> "$GITHUB_OUTPUT"
           echo "file=$file" >> "$GITHUB_OUTPUT"

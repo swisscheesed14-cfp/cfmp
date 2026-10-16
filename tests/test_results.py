@@ -3,7 +3,8 @@
 import pandas as pd
 
 from cfmp.models.availability import blend_dock, prior_dock
-from cfmp.models.results import grade_card
+from cfmp.models.results import grade_card, week_rates
+from cfmp.models.season import cap_if_both_good, sample_trust
 from cfmp.models.season import Weights
 from cfmp.models.site import crowd_points, kick_period
 import numpy as np
@@ -23,14 +24,20 @@ def test_the_worst_miss_is_first_and_the_rates_are_the_week() -> None:
         ]
     )
     graded = grade_card(card, played)
+    assert "closer_rate" not in graded.columns
     assert graded.iloc[0]["home"] == "Oregon"
     assert graded.iloc[0]["closer"] == "model"
     assert bool(graded.iloc[0]["covered"]) is True
-    assert graded.iloc[0]["closer_rate"] == 50.0
-    assert graded.iloc[0]["cover_rate"] == 50.0
+    rates = week_rates(graded)
+    assert rates.closer_rate.iloc[0] == 50.0
+    assert rates.cover_rate.iloc[0] == 50.0
 
 
-def test_crowd_stays_inside_a_point_and_a_half() -> None:
+def test_a_short_sample_keeps_only_part_of_the_gap() -> None:
+    assert round(sample_trust(4, 5), 3) == round(4 / 12, 3)
+    # Both well above average, so 14 points becomes 10.
+    assert cap_if_both_good(14, 18, 12) == 10
+    assert cap_if_both_good(14, 18, 3) == 14
     assert crowd_points(1.0, 90000, "night") == 1.2
     assert crowd_points(1.3, 90000, "night") == 1.5
     assert crowd_points(0.4, 20000, "early") == -1.05

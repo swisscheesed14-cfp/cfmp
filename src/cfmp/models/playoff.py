@@ -21,6 +21,8 @@ import math
 import numpy as np
 import pandas as pd
 
+from cfmp.models.season import cap_if_both_good, sample_trust
+
 POWER = ("ACC", "Big Ten", "Big 12", "SEC")
 GROUP = ("American Athletic", "Conference USA", "Mid-American", "Mountain West", "Pac-12", "Sun Belt")
 FCS_FPI = -18.0
@@ -107,6 +109,7 @@ def playoff_odds(
     if season_dock is not None:
         rating = rating - np.array([float(season_dock.get(name, 0.0)) for name in names])
     week_penalty = np.zeros(teams) if week_dock is None else np.array([float(week_dock.get(name, 0.0)) for name in names])
+    played_before = _games_before(games, names)
     crowd_map = {}
     if crowd is not None:
         for key, value in crowd.items():
@@ -175,7 +178,7 @@ def playoff_odds(
                 continue
             apply_result(home, away, row.home_points > row.away_points, counts)
             continue
-        spread = _spread(home, away, rating, hfa, bool(row.neutral_site))
+        spread = _spread(home, away, rating, hfa, bool(row.neutral_site), played_before, int(row.week), names)
         if not bool(row.neutral_site):
             try:
                 spread += crowd_map.get(int(row.game_id), 0.0)
@@ -183,6 +186,7 @@ def playoff_odds(
                 pass
         if dock_week is not None and int(row.week) == dock_week:
             spread += _side(week_penalty, away) - _side(week_penalty, home)
+        spread = _cap_sides(spread, home, away, rating)
         item = (home, away, win_chance(spread, residual_sd), counts, int(row.week))
         if int(row.week) >= 15:
             late.append(item)
@@ -216,7 +220,10 @@ def playoff_odds(
             order = _order(sides, conf_wins, conf_played, rating, beat)
             host, visitor = order[0], order[1]
             neutral = name != "Pac-12"
-            chance = win_chance(_spread(host, visitor, rating, hfa, neutral), residual_sd)
+            chance = win_chance(
+                _cap_sides(_spread(host, visitor, rating, hfa, neutral, played_before, 15, names), host, visitor, rating),
+                residual_sd,
+            )
             home_won = _play(host, visitor, chance, False, rating, wins, losses, conf_wins, conf_played, resume, beat, rng)
             champs[name] = names[host if home_won else visitor]
             champ_hits[host if home_won else visitor] += 1
@@ -255,10 +262,50 @@ def _side(penalty: np.ndarray, side: int | None) -> float:
     return float(penalty[side])
 
 
-def _spread(home: int | None, away: int | None, rating: np.ndarray, hfa: float, neutral: bool) -> float:
+def _games_before(games: pd.DataFrame, names: list[str]) -> dict[str, list[int]]:
+    """Weeks each team is scheduled, so a later game can see the longer sample."""
+    found: dict[str, list[int]] = {name: [] for name in names}
+    weeks = pd.to_numeric(games["week"], errors="coerce")
+    for team, week in zip(games["home_team"], weeks):
+        if team in found and pd.notna(week):
+            found[str(team)].append(int(week))
+    for team, week in zip(games["away_team"], weeks):
+        if team in found and pd.notna(week):
+            found[str(team)].append(int(week))
+    return found
+
+
+def _sample(played_before: dict[str, list[int]], names: list[str], side: int | None, week: int) -> float:
+    if side is None:
+        return TRUST_FALLBACK
+    team = names[side]
+    return float(sum(1 for played in played_before.get(team, []) if played < week))
+
+
+TRUST_FALLBACK = 8.0
+
+
+def _spread(
+    home: int | None,
+    away: int | None,
+    rating: np.ndarray,
+    hfa: float,
+    neutral: bool,
+    played_before: dict[str, list[int]],
+    week: int,
+    names: list[str],
+) -> float:
+    """Home field is full. The rating gap shrinks when the shorter sample is small."""
     home_rating = FCS_FPI if home is None else float(rating[home])
     away_rating = FCS_FPI if away is None else float(rating[away])
-    return home_rating - away_rating + (0.0 if neutral else hfa)
+    trust = sample_trust(_sample(played_before, names, home, week), _sample(played_before, names, away, week))
+    return (0.0 if neutral else hfa) + trust * (home_rating - away_rating)
+
+
+def _cap_sides(spread: float, home: int | None, away: int | None, rating: np.ndarray) -> float:
+    home_rating = FCS_FPI if home is None else float(rating[home])
+    away_rating = FCS_FPI if away is None else float(rating[away])
+    return cap_if_both_good(spread, home_rating, away_rating)
 
 
 def _play(

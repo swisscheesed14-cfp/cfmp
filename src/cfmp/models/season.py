@@ -43,6 +43,11 @@ SHRINK_GAMES = 3
 SIMS = 4000
 # A game against a bottom-tier opponent counts this fraction of a game against a top one.
 SOS_FLOOR = 0.35
+# The rating gap is not fully trusted until the shorter sample is long.
+TRUST_PRIOR = 8
+# Two teams this far above average do not get a blowout number.
+GOOD_TEAM = 7.0
+GOOD_CAP = 10.0
 
 
 @dataclass
@@ -358,23 +363,40 @@ def next_slate(schedule: pd.DataFrame, season: int, through_week: int) -> pd.Dat
     return left[left["week"] == week].copy()
 
 
+def sample_trust(home_games: float, away_games: float) -> float:
+    """Share of the rating gap to keep. The shorter sample sets it."""
+    games = min(float(home_games), float(away_games))
+    if games <= 0:
+        return 0.0
+    return games / (games + TRUST_PRIOR)
+
+
+def cap_if_both_good(spread: float, home_fpi: float, away_fpi: float) -> float:
+    """A good team against a good team stops at 10 points."""
+    if home_fpi > GOOD_TEAM and away_fpi > GOOD_TEAM:
+        return max(-GOOD_CAP, min(GOOD_CAP, spread))
+    return spread
+
+
 def price_slate(slate: pd.DataFrame, profile: pd.DataFrame, weights: Weights) -> pd.DataFrame:
-    """Home spread for each game. Positive means the home team is favored."""
+    """Home spread for each game. Positive means the home team is favored.
+
+    Home field is full. The FPI gap is scaled by the shorter sample.
+    """
+    ratings = rate_season(profile, weights, min_games=1)
     rows = []
     for game in slate.itertuples(index=False):
         home_name = game.home_team
         away_name = game.away_team
         if home_name not in profile.index or away_name not in profile.index:
             continue
+        if home_name not in ratings.index or away_name not in ratings.index:
+            continue
         neutral = bool(getattr(game, "neutral_site", False))
-        priced = simulate_game(
-            profile.loc[home_name],
-            profile.loc[away_name],
-            weights,
-            neutral=neutral,
-            n=800,
-            seed=int(game.game_id) % 10000,
-        )
+        home_fpi = float(ratings.at[home_name, "rating"])
+        away_fpi = float(ratings.at[away_name, "rating"])
+        trust = sample_trust(float(profile.at[home_name, "games"]), float(profile.at[away_name, "games"]))
+        hfa = 0.0 if neutral else weights.hfa
         rows.append(
             {
                 "game_id": game.game_id,
@@ -382,7 +404,9 @@ def price_slate(slate: pd.DataFrame, profile: pd.DataFrame, weights: Weights) ->
                 "away": away_name,
                 "home": home_name,
                 "neutral": neutral,
-                "model": priced["spread"],
+                "home_fpi": home_fpi,
+                "away_fpi": away_fpi,
+                "model": hfa + trust * (home_fpi - away_fpi),
             }
         )
     return pd.DataFrame(rows)
@@ -425,6 +449,7 @@ def price_played(games: pd.DataFrame, weights: Weights) -> pd.DataFrame:
         & (games["prior_games_away"] >= MIN_PRIOR)
     ]
     for game in usable.itertuples(index=False):
+        # The entering columns are already on the row. Build two tiny profiles.
         home = {}
         away = {}
         for off, deff, _ in STATS:
