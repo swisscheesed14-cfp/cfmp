@@ -73,6 +73,11 @@ def _schedule_rows(year: int) -> list[dict]:
                 "neutral_site": bool(game.get("neutralSite")),
                 "home_division": str(game.get("homeClassification") or "").lower(),
                 "away_division": str(game.get("awayClassification") or "").lower(),
+                "home_conference": game.get("homeConference"),
+                "away_conference": game.get("awayConference"),
+                "conference_game": bool(game.get("conferenceGame")),
+                "venue": game.get("venue"),
+                "venue_id": game.get("venueId"),
             }
         )
     return rows
