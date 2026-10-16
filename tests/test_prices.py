@@ -11,7 +11,7 @@ def test_sunday_open_stays_put_when_the_line_moves(tmp_path: Path) -> None:
     first = pd.DataFrame([{"away": "Kansas", "home": "Kansas State", "draftkings": 7.5}])
     locked = apply_open(first, tmp_path, True)
     assert locked.dk_open.iloc[0] == 7.5
-    locked.to_csv(tmp_path / "prices.csv", index=False)
+    locked.to_csv(tmp_path / "Week7Matchups.csv", index=False)
     moved = pd.DataFrame([{"away": "Kansas", "home": "Kansas State", "draftkings": 4.5}])
     later = apply_open(moved, tmp_path, False)
     assert later.dk_open.iloc[0] == 7.5

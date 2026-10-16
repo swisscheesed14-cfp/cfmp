@@ -53,15 +53,28 @@ def _open_day() -> bool:
     return datetime.now(ZoneInfo("America/Chicago")).weekday() in (6, 0)
 
 
+def card_name(week: int) -> str:
+    """The weekly card. Week 7 is Week7Matchups.csv."""
+    return f"Week{int(week)}Matchups.csv"
+
+
+def _prior_card(folder: Path) -> Path | None:
+    cards = sorted(folder.glob("Week*Matchups.csv"))
+    if cards:
+        return cards[-1]
+    legacy = folder / "prices.csv"
+    return legacy if legacy.exists() else None
+
+
 def apply_open(out: pd.DataFrame, folder: Path, lock_today: bool) -> pd.DataFrame:
     """Keep the Sunday DraftKings number. Do not use the book's original open.
 
     A line that was blank on Sunday is filled the first time it appears,
     then left alone while the current number keeps moving.
     """
-    prior = folder / "prices.csv"
+    prior = _prior_card(folder)
     lock = folder / "open_locked.txt"
-    if lock.exists() and prior.exists():
+    if lock.exists() and prior is not None:
         saved = pd.read_csv(prior)
         if {"away", "home", "dk_open"} <= set(saved.columns):
             saved = saved[["away", "home", "dk_open"]].drop_duplicates(["away", "home"])
@@ -134,11 +147,19 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         out[column] = pd.to_numeric(out[column], errors="coerce").round(2)
     for column in ("home_ml", "away_ml"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(0)
-    _write(out, folder / "prices.csv")
-    _write(out, OUT / "latest" / "prices.csv")
+    name = card_name(week)
+    _write(out, folder / name)
+    latest = OUT / "latest"
+    for stale in latest.glob("Week*Matchups.csv"):
+        if stale.name != name:
+            stale.unlink()
+    _write(out, latest / name)
+    for stale in (folder / "prices.csv", latest / "prices.csv"):
+        if stale.exists():
+            stale.unlink()
     (OUT / "latest" / "prices_week.txt").write_text(str(week), encoding="utf-8")
     covered = int(out["draftkings"].notna().sum())
-    print(f"Priced {len(out)} week {week} games ({covered} with a DraftKings number) -> {folder / 'prices.csv'}")
+    print(f"Priced {len(out)} week {week} games ({covered} with a DraftKings number) -> {folder / name}")
     return week
 
 

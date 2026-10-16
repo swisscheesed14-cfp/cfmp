@@ -67,6 +67,13 @@ jobs:
             echo "MAIL_PASSWORD is not set. Email skipped."
           fi
 
+      - name: Name the card
+        id: card
+        run: |
+          card=$(ls data/reports/latest/Week*Matchups.csv | head -1)
+          echo "path=$card" >> "$GITHUB_OUTPUT"
+          echo "file=$(basename "$card")" >> "$GITHUB_OUTPUT"
+
       - name: Email the reports
         if: steps.mail.outputs.ready == 'true'
         uses: dawidd6/action-send-mail@v4
@@ -84,7 +91,7 @@ jobs:
             fpi_top25.csv is the top 25.
             fpi.csv is every team.
             sos.csv is every team's schedule strength.
-            prices.csv is the weekly card. A positive number favors the home team.
+            ${{ steps.card.outputs.file }} is the weekly card. A positive number favors the home team.
             playoff.csv is the chance each team makes the 12-team field.
-          attachments: data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,data/reports/latest/prices.csv,data/reports/latest/playoff.csv
+          attachments: data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,${{ steps.card.outputs.path }},data/reports/latest/playoff.csv
 
