@@ -225,14 +225,23 @@ def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week
     print(f"Playoff odds through week {week} -> {folder / 'playoff.csv'}")
 
 
-def publish_results(schedule: pd.DataFrame, week: int) -> None:
-    """Grade the card that was saved before this week kicked off."""
+def publish_results(schedule: pd.DataFrame, snaps: pd.DataFrame, weights, week: int) -> None:
+    """Grade the card that was saved before this week kicked off.
+
+    The first week this ran had no saved card. That week is priced from the
+    games already played, then graded, so the file still exists.
+    """
     folder = OUT / f"{SEASON}-w{week:02d}"
     path = _prior_card(folder)
     if path is None:
-        print(f"No saved card for week {week}, so there is nothing to grade.")
-        return
-    card = pd.read_csv(path)
+        print(f"No saved card for week {week}. Pricing it from the prior week.")
+        card = _card_from_prior_week(schedule, snaps, weights, week)
+        if card.empty:
+            print(f"Week {week} could not be rebuilt.")
+            return
+        _write(card, folder / card_name(week))
+    else:
+        card = pd.read_csv(path)
     info = schedule.loc[schedule["season"] == SEASON].copy()
     info = info[pd.to_numeric(info["week"], errors="coerce") == week]
     info = info[info["home_points"].notna() & info["away_points"].notna()]
@@ -260,6 +269,36 @@ def publish_results(schedule: pd.DataFrame, week: int) -> None:
     )
 
 
+def _card_from_prior_week(schedule: pd.DataFrame, snaps: pd.DataFrame, weights, week: int) -> pd.DataFrame:
+    """The card this week would have been, using nothing from the games themselves."""
+    profile = _current_means(snaps, schedule, SEASON, weights, through_week=week - 1)
+    info = schedule.loc[schedule["season"] == SEASON].copy()
+    info = info[pd.to_numeric(info["week"], errors="coerce") == week]
+    fbs = info["home_division"].astype(str).str.lower().eq("fbs") & info["away_division"].astype(str).str.lower().eq("fbs")
+    slate = info[fbs].copy()
+    if slate.empty:
+        return pd.DataFrame()
+    priced = price_slate(slate, profile, weights)
+    if priced.empty:
+        return priced
+    edges = home_edges(schedule, SEASON)
+    if not edges.empty:
+        edges.index = pd.to_numeric(edges.index, errors="coerce")
+        priced["model"] = priced["model"] + pd.to_numeric(priced["game_id"], errors="coerce").map(edges).fillna(0)
+    market = _market(SEASON, week)
+    if not market.empty:
+        priced["game_id"] = pd.to_numeric(priced["game_id"], errors="coerce")
+        market["id"] = pd.to_numeric(market["id"], errors="coerce")
+        priced = priced.merge(market[["id", "vegas_spread"]], left_on="game_id", right_on="id", how="left")
+        priced = priced.drop(columns=["id"])
+        priced = priced.rename(columns={"vegas_spread": "draftkings"})
+    else:
+        priced["draftkings"] = pd.NA
+    priced["model"] = pd.to_numeric(priced["model"], errors="coerce").round(2)
+    priced["draftkings"] = pd.to_numeric(priced["draftkings"], errors="coerce").round(2)
+    return priced[["away", "home", "model", "draftkings"]]
+
+
 def main() -> None:
     refresh()
     snaps = pd.read_parquet(SNAPS)
@@ -280,7 +319,7 @@ def main() -> None:
     crowd = home_edges(schedule, SEASON)
     publish_boards(profile, weights, week, rest)
     (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
-    publish_results(schedule, week)
+    publish_results(schedule, snaps, weights, week)
     price_next(schedule, profile, weights, week, docks)
     publish_playoff(schedule, profile, weights, week, docks, crowd)
 
