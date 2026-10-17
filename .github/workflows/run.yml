@@ -1,11 +1,9 @@
 name: daily-pipeline
 
 on:
-  schedule:
-    # Thu, Fri, Sat 10:00 UTC  ≈ 6:00 CST / 7:00 CDT
-    - cron: "0 10 * * 4,5,6"
-    # Sunday verifier at 15:00 UTC ≈ 9:00 CST / 10:00 CDT
-    - cron: "0 15 * * 0"
+  # The FPI reports workflow replaced this schedule. Leaving the cron on
+  # was burning the CollegeFootballData limit and failing the morning email.
+  # Run it by hand only.
   workflow_dispatch:
 
 jobs:
