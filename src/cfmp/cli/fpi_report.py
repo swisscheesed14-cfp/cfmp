@@ -33,7 +33,7 @@ from cfmp.models.season import (
 from cfmp.models.availability import quarterback_docks
 from cfmp.models.playoff import playoff_odds
 from cfmp.models.results import grade_card, week_rates
-from cfmp.models.site import home_edges
+from cfmp.models.site import home_edges, toughest_places
 from cfmp.models.weather import apply_kickoff_weather
 
 SEASON = 2026
@@ -344,6 +344,11 @@ def main() -> None:
         print(docks.to_string(index=False))
     rest = docks.set_index("team")["rest"] if not docks.empty else pd.Series(dtype=float)
     crowd = home_edges(schedule, SEASON, weights.hfa)
+    places = toughest_places(schedule, SEASON)
+    places_name = "Toughest Places to Play.csv"
+    _write(places, OUT / "latest" / places_name)
+    _write(places, OUT / f"{SEASON}-w{week:02d}" / places_name)
+    print(f"Toughest places -> {places_name} ({len(places)} stadiums)")
     publish_boards(profile, weights, week, rest)
     (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
     publish_results(schedule, snaps, weights, week)

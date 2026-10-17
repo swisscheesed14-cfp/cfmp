@@ -168,10 +168,10 @@ def _venue_home_field(schedule: pd.DataFrame, season: int) -> tuple[dict[int, fl
         for venue, value in zip(games["venue_id"].astype(int), residual):
             residuals.setdefault(int(venue), []).append(float(value))
     league = float(np.mean(league_values)) if league_values else 2.5
-    venues = {
-        venue: shrunk_venue(float(np.mean(values)), len(values), league)
-        for venue, values in residuals.items()
-    }
+    venues = {}
+    for venue, values in residuals.items():
+        games = len(values)
+        venues[venue] = (league + games / (games + VENUE_PRIOR) * float(np.mean(values)), games)
     return venues, league
 
 
@@ -194,6 +194,32 @@ def home_edges(schedule: pd.DataFrame, season: int, league_hfa: float = 3.0) -> 
             extras[int(game_id)] = 0.0
             continue
         venue = pd.to_numeric(getattr(row, "venue_id", None), errors="coerce")
-        total = venues.get(int(venue), _league) if pd.notna(venue) else _league
+        found = venues.get(int(venue)) if pd.notna(venue) else None
+        total = found[0] if found else _league
+        total = max(HOME_FLOOR, min(HOME_CAP, float(total)))
         extras[int(game_id)] = float(total) - float(league_hfa)
     return pd.Series(extras, dtype=float)
+
+
+def toughest_places(schedule: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Current stadiums, hardest first. The point value is not in the file."""
+    venues, _league = _venue_home_field(schedule, season)
+    frame = schedule[pd.to_numeric(schedule["season"], errors="coerce") == season].copy()
+    frame = frame[~frame["neutral_site"].fillna(False).astype(bool)]
+    if "home_division" in frame.columns:
+        frame = frame[frame["home_division"].astype(str).str.lower().eq("fbs")]
+    frame["venue_id"] = pd.to_numeric(frame["venue_id"], errors="coerce")
+    frame = frame[frame["venue_id"].notna()]
+    rows = []
+    for venue_id, games in frame.groupby("venue_id"):
+        found = venues.get(int(venue_id))
+        if found is None or found[1] < 40:
+            continue
+        stadium = str(games["venue"].dropna().mode().iloc[0]) if games["venue"].notna().any() else str(int(venue_id))
+        team = str(games["home_team"].dropna().mode().iloc[0])
+        rows.append({"stadium": stadium, "team": team, "score": float(found[0])})
+    if not rows:
+        return pd.DataFrame(columns=["rank", "stadium", "team"])
+    out = pd.DataFrame(rows).sort_values(["score", "stadium"], ascending=[False, True]).reset_index(drop=True)
+    out.insert(0, "rank", out.index + 1)
+    return out[["rank", "stadium", "team"]]
