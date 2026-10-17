@@ -118,11 +118,34 @@ def apply_open(out: pd.DataFrame, folder: Path, lock_today: bool) -> pd.DataFram
     return out
 
 
+def _keep_last_lines(priced: pd.DataFrame, folder: Path) -> pd.DataFrame:
+    """If DraftKings does not answer, keep the last number instead of a blank."""
+    prior = _prior_card(folder)
+    if prior is None or priced.empty:
+        return priced
+    saved = pd.read_csv(prior)
+    columns = [name for name in ("draftkings", "total", "away_ml", "home_ml") if name in saved.columns]
+    if not columns or not {"away", "home"} <= set(saved.columns):
+        return priced
+    saved = saved[["away", "home", *columns]].drop_duplicates(["away", "home"])
+    out = priced.merge(saved, on=["away", "home"], how="left", suffixes=("", "_prior"))
+    kept = pd.Series(False, index=out.index)
+    for column in columns:
+        current = pd.to_numeric(out[column], errors="coerce")
+        previous = pd.to_numeric(out[f"{column}_prior"], errors="coerce")
+        kept = kept | (current.isna() & previous.notna())
+        out[column] = current.where(current.notna(), previous)
+        out = out.drop(columns=[f"{column}_prior"])
+    if bool(kept.any()):
+        print(f"Kept the previous DraftKings number on {int(kept.sum())} games.")
+    return out
+
+
 def _market(season: int, week: int) -> pd.DataFrame:
     try:
         rows = normalize_lines(fetch_lines(season, week=week, season_type="regular"))
     except Exception as exc:
-        print(f"Lines pull failed, prices will have no Vegas number: {exc}")
+        print(f"Lines pull failed. The previous DraftKings number will be kept: {exc}")
         return pd.DataFrame(columns=["id", "vegas_spread", "vegas_open", "total", "total_open", "home_ml", "away_ml"])
     if not rows:
         return pd.DataFrame(columns=["id", "vegas_spread", "vegas_open", "total", "total_open", "home_ml", "away_ml"])
@@ -161,6 +184,7 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         priced["away_ml"] = pd.NA
     priced = apply_kickoff_weather(priced, slate)
     priced = _cap_model(priced)
+    priced = _keep_last_lines(priced, OUT / f"{SEASON}-w{week:02d}")
     priced["edge"] = priced["model"] - priced["draftkings"]
     if "start_date" in slate.columns:
         kick = slate[["game_id", "start_date"]].drop_duplicates("game_id")
