@@ -2,12 +2,12 @@ rank,team,fpi,games
 1,Alabama,11.095,6
 2,LSU,10.386,5
 3,Ohio State,10.122,6
-4,Texas,9.178,5
+4,Texas,9.177,5
 5,Notre Dame,8.764,6
 6,Georgia,7.762,5
-7,Indiana,7.146,5
+7,Indiana,7.147,5
 8,Utah,6.866,4
-9,Wisconsin,6.123,4
+9,Wisconsin,6.125,4
 10,Missouri,5.952,5
 11,UCLA,5.893,5
 12,Miami,5.867,4
@@ -19,8 +19,8 @@ rank,team,fpi,games
 18,BYU,4.597,4
 19,Wake Forest,4.542,6
 20,Louisville,4.325,5
-21,Texas Tech,4.225,4
-22,Nebraska,4.171,5
-23,Northwestern,4.055,4
-24,Kentucky,4.021,5
-25,Oregon,3.884,4
+21,Oregon,4.264,4
+22,Texas Tech,4.226,4
+23,Nebraska,4.172,5
+24,Northwestern,4.057,4
+25,Kentucky,4.02,5
