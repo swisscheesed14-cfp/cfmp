@@ -107,9 +107,11 @@ def apply_open(out: pd.DataFrame, folder: Path, lock_today: bool) -> pd.DataFram
     if "dk_open" not in out.columns:
         out["dk_open"] = pd.NA
     out["dk_open"] = pd.to_numeric(out["dk_open"], errors="coerce")
+    out["draftkings"] = pd.to_numeric(out["draftkings"], errors="coerce")
     if lock_today or lock.exists():
         missing = out["dk_open"].isna() & out["draftkings"].notna()
-        out.loc[missing, "dk_open"] = out.loc[missing, "draftkings"]
+        if missing.any():
+            out.loc[missing, "dk_open"] = out.loc[missing, "draftkings"]
         if out["dk_open"].notna().any():
             folder.mkdir(parents=True, exist_ok=True)
             lock.write_text("sunday", encoding="utf-8")

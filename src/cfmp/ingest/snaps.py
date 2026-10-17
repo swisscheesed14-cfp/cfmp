@@ -26,21 +26,21 @@ def _pause(response: httpx.Response, attempt: int) -> None:
     """Wait out a rate limit. CollegeFootballData asks for longer than a couple of seconds."""
     header = response.headers.get("Retry-After")
     try:
-        pause = float(header) if header else 20 * (attempt + 1)
+        pause = float(header) if header else 10 * (attempt + 1)
     except ValueError:
-        pause = 20 * (attempt + 1)
-    time.sleep(min(max(pause, 5), 90))
+        pause = 10 * (attempt + 1)
+    time.sleep(min(max(pause, 5), 15))
 
 
 def _get(path: str, params: dict) -> list:
     if not SETTINGS.cfbd_key:
         raise SystemExit("CFBD_KEY is not set.")
     headers = {"Authorization": f"Bearer {SETTINGS.cfbd_key}", "Accept": "application/json"}
-    for attempt in range(5):
+    for attempt in range(3):
         response = httpx.get(BASE + path, params=params, headers=headers, timeout=120)
         if response.status_code == 200:
             return response.json()
-        if response.status_code in (429, 500, 502, 503) and attempt < 4:
+        if response.status_code in (429, 500, 502, 503) and attempt < 2:
             _pause(response, attempt)
             continue
         response.raise_for_status()
