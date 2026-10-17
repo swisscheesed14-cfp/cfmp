@@ -1,21 +1,23 @@
 """Site adjustments on top of a neutral-field rating.
 
-Home field is a crowd edge, not a dome edge. Weather is applied by the caller.
-Travel and rest are separate so a normal Saturday does not get double-counted
-with home field: only a short week, a bye, or a genuinely long trip moves the number.
-The league home number stays in the rating. Crowd, size, and kickoff time
-only move it by about a point.
+Home field comes from the last ten years at that stadium, after the teams
+themselves are taken out. A packed night game does not add more on top.
+Some buildings are just not hard to win in. Weather is applied by the caller.
 """
 
 from __future__ import annotations
 
 import math
 
+import numpy as np
 import pandas as pd
 
 from cfmp.models.params import PowerParams
 
 CROWD_CAP = 1.5
+VENUE_PRIOR = 25
+HOME_FLOOR = 0.5
+HOME_CAP = 3.5
 
 
 def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -127,37 +129,71 @@ def crowd_points(fill: float | None, capacity: float | None, period: str) -> flo
     return max(-CROWD_CAP, min(CROWD_CAP, extra))
 
 
-def home_edges(schedule: pd.DataFrame, season: int) -> pd.Series:
-    """Extra home points for each game this season. Neutral sites stay at zero.
+def shrunk_venue(residual: float, games: int, league: float) -> float:
+    """Ten-year venue edge, pulled toward the league and kept between 0.5 and 3.5."""
+    pulled = league + games / (games + VENUE_PRIOR) * residual
+    return max(HOME_FLOOR, min(HOME_CAP, pulled))
 
-    Capacity is the most people that venue has held in this file. The fill
-    rate is that team's own crowd, this year when they have played at home
-    twice, otherwise last year too.
-    """
+
+def _venue_home_field(schedule: pd.DataFrame, season: int) -> tuple[dict[int, float], float]:
+    """Home points at each stadium from the previous ten seasons. 2020 is left out."""
     frame = schedule.copy()
-    if "attendance" not in frame.columns or "venue_id" not in frame.columns:
+    frame["season"] = pd.to_numeric(frame["season"], errors="coerce")
+    years = frame["season"].between(season - 10, season - 1) & frame["season"].ne(2020)
+    played = frame["home_points"].notna() & frame["away_points"].notna()
+    hist = frame[years & played & ~frame["neutral_site"].fillna(False).astype(bool)].copy()
+    if "home_division" in hist.columns and "away_division" in hist.columns:
+        fbs = hist["home_division"].astype(str).str.lower().eq("fbs") & hist["away_division"].astype(str).str.lower().eq("fbs")
+        hist = hist[fbs]
+    hist["venue_id"] = pd.to_numeric(hist["venue_id"], errors="coerce")
+    hist = hist[hist["venue_id"].notna()]
+    if hist.empty:
+        return {}, 2.5
+    league_values = []
+    residuals: dict[int, list[float]] = {}
+    for _, games in hist.groupby("season"):
+        if len(games) < 50:
+            continue
+        teams = pd.Index(sorted(set(games["home_team"]) | set(games["away_team"])))
+        index = {team: pos for pos, team in enumerate(teams)}
+        design = np.zeros((len(games), len(teams)))
+        margin = (games["home_points"] - games["away_points"]).to_numpy(dtype=float)
+        for row, home, away in zip(design, games["home_team"], games["away_team"]):
+            row[index[home]] = 1.0
+            row[index[away]] = -1.0
+        design = np.column_stack([design[:, :-1], np.ones(len(games))])
+        coef, *_ = np.linalg.lstsq(design, margin, rcond=None)
+        residual = margin - design @ coef
+        league_values.append(float(coef[-1]))
+        for venue, value in zip(games["venue_id"].astype(int), residual):
+            residuals.setdefault(int(venue), []).append(float(value))
+    league = float(np.mean(league_values)) if league_values else 2.5
+    venues = {
+        venue: shrunk_venue(float(np.mean(values)), len(values), league)
+        for venue, values in residuals.items()
+    }
+    return venues, league
+
+
+def home_edges(schedule: pd.DataFrame, season: int, league_hfa: float = 3.0) -> pd.Series:
+    """Points added on top of the model's home field. Neutral sites stay at zero.
+
+    The result is a ten-year stadium number, not a night-game or capacity bump.
+    An average building comes out a little under the model's home field.
+    """
+    if "venue_id" not in schedule.columns:
         return pd.Series(dtype=float)
-    frame["game_id"] = pd.to_numeric(frame["game_id"], errors="coerce")
-    frame["attendance"] = pd.to_numeric(frame["attendance"], errors="coerce")
-    frame["venue_id"] = pd.to_numeric(frame["venue_id"], errors="coerce")
-    caps = frame.groupby("venue_id")["attendance"].max()
-    history = frame[frame["season"].between(season - 1, season) & frame["attendance"].gt(0)]
-    typical: dict[str, tuple[float, float]] = {}
-    for team, games in history.groupby("home_team"):
-        venue = games["venue_id"].mode()
-        if venue.empty:
-            continue
-        capacity = caps.get(venue.iloc[0])
-        if capacity is None or not math.isfinite(float(capacity)) or float(capacity) < 15000:
-            continue
-        this_year = games[games["season"] == season]
-        sample = this_year if len(this_year) >= 2 else games
-        typical[str(team)] = (float(sample["attendance"].median() / float(capacity)), float(capacity))
+    venues, _league = _venue_home_field(schedule, season)
+    frame = schedule[pd.to_numeric(schedule["season"], errors="coerce") == season]
     extras = {}
-    for row in frame[frame["season"] == season].itertuples(index=False):
-        if bool(getattr(row, "neutral_site", False)):
-            extras[row.game_id] = 0.0
+    for row in frame.itertuples(index=False):
+        game_id = pd.to_numeric(getattr(row, "game_id", None), errors="coerce")
+        if pd.isna(game_id):
             continue
-        fill, capacity = typical.get(str(row.home_team), (None, None))
-        extras[row.game_id] = crowd_points(fill, capacity, kick_period(getattr(row, "start_date", None)))
+        if bool(getattr(row, "neutral_site", False)):
+            extras[int(game_id)] = 0.0
+            continue
+        venue = pd.to_numeric(getattr(row, "venue_id", None), errors="coerce")
+        total = venues.get(int(venue), _league) if pd.notna(venue) else _league
+        extras[int(game_id)] = float(total) - float(league_hfa)
     return pd.Series(extras, dtype=float)

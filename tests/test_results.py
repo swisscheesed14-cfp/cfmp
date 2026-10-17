@@ -6,7 +6,7 @@ from cfmp.models.availability import blend_dock, prior_dock
 from cfmp.models.results import grade_card, week_rates
 from cfmp.models.season import _edge, blend_rating, cap_if_both_good, sample_trust
 from cfmp.models.season import Weights
-from cfmp.models.site import crowd_points, kick_period
+from cfmp.models.site import crowd_points, kick_period, shrunk_venue
 import numpy as np
 
 
@@ -46,6 +46,10 @@ def test_a_game_is_each_offense_against_the_other_defense() -> None:
     assert crowd_points(1.0, 90000, "night") == 1.2
     assert crowd_points(1.3, 90000, "night") == 1.5
     assert crowd_points(0.4, 20000, "early") == -1.05
+    # A decade of ordinary results stays at the league. A soft building is cut. Nothing clears 3.5.
+    assert shrunk_venue(0.0, 60, 2.25) == 2.25
+    assert shrunk_venue(-3.0, 50, 2.25) < 1.0
+    assert shrunk_venue(4.0, 60, 2.25) == 3.5
     assert kick_period("2026-10-18T03:00:00.000Z") == "night"
     assert kick_period("2026-10-17T16:00:00.000Z") == "early"
 

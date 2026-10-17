@@ -140,7 +140,7 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     if not docks.empty:
         now = docks.set_index("team")["now"]
         priced["model"] = priced["model"] - priced["home"].map(now).fillna(0) + priced["away"].map(now).fillna(0)
-    edges = home_edges(schedule, SEASON)
+    edges = home_edges(schedule, SEASON, weights.hfa)
     if not edges.empty:
         edges.index = pd.to_numeric(edges.index, errors="coerce")
         priced["model"] = priced["model"] + pd.to_numeric(priced["game_id"], errors="coerce").map(edges).fillna(0)
@@ -307,7 +307,7 @@ def _card_from_prior_week(schedule: pd.DataFrame, snaps: pd.DataFrame, weights, 
     priced = price_slate(slate, profile, weights)
     if priced.empty:
         return priced
-    edges = home_edges(schedule, SEASON)
+    edges = home_edges(schedule, SEASON, weights.hfa)
     if not edges.empty:
         edges.index = pd.to_numeric(edges.index, errors="coerce")
         priced["model"] = priced["model"] + pd.to_numeric(priced["game_id"], errors="coerce").map(edges).fillna(0)
@@ -343,7 +343,7 @@ def main() -> None:
     else:
         print(docks.to_string(index=False))
     rest = docks.set_index("team")["rest"] if not docks.empty else pd.Series(dtype=float)
-    crowd = home_edges(schedule, SEASON)
+    crowd = home_edges(schedule, SEASON, weights.hfa)
     publish_boards(profile, weights, week, rest)
     (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
     publish_results(schedule, snaps, weights, week)
