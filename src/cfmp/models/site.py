@@ -24,7 +24,6 @@ RESULT_WEIGHT = 0.40
 CAPACITY_WEIGHT = 0.30
 ATTENDANCE_WEIGHT = 0.30
 STREAK_WEIGHT = 0.15
-STREAK_CAP = 8
 
 
 def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -252,7 +251,7 @@ def stadium_table(schedule: pd.DataFrame, season: int) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame(columns=["venue_id", "stadium", "team", "score", "points"])
     out = pd.DataFrame(rows)
-    out["streak"] = out["team"].map(home_streaks(schedule)).fillna(0).clip(upper=STREAK_CAP)
+    out["streak"] = out["team"].map(home_streaks(schedule)).fillna(0).gt(0).astype(float)
     out["score"] = (
         RESULT_WEIGHT * _z(out["edge"])
         + CAPACITY_WEIGHT * _z(out["capacity"])

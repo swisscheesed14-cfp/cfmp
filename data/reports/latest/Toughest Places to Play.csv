@@ -2,118 +2,118 @@ rank,stadium,team
 1,Ohio Stadium,Ohio State
 2,DKR-Texas Memorial Stadium,Texas
 3,Tiger Stadium (LA),LSU
-4,Bryant-Denny Stadium,Alabama
-5,Ben Hill Griffin Stadium,Florida
-6,Neyland Stadium,Tennessee
-7,Kyle Field,Texas A&M
+4,Neyland Stadium,Tennessee
+5,Kyle Field,Texas A&M
+6,Bryant-Denny Stadium,Alabama
+7,Ben Hill Griffin Stadium,Florida
 8,"Memorial Stadium (Norman, OK)",Oklahoma
-9,Sanford Stadium,Georgia
-10,Michigan Stadium,Michigan
+9,Michigan Stadium,Michigan
+10,Jack Trice Stadium,Iowa State
 11,Beaver Stadium,Penn State
 12,"Memorial Stadium (Lincoln, NE)",Nebraska
-13,Notre Dame Stadium,Notre Dame
-14,Jones AT&T Stadium,Texas Tech
-15,Arizona Stadium,Arizona
-16,Jack Trice Stadium,Iowa State
-17,Doak Campbell Stadium,Florida State
-18,Folsom Field,Colorado
-19,L&N Federal Credit Union Stadium,Louisville
-20,Los Angeles Memorial Coliseum,USC
-21,Rice-Eccles Stadium,Utah
+13,Sanford Stadium,Georgia
+14,Doak Campbell Stadium,Florida State
+15,L&N Federal Credit Union Stadium,Louisville
+16,Los Angeles Memorial Coliseum,USC
+17,Arizona Stadium,Arizona
+18,Notre Dame Stadium,Notre Dame
+19,Jones AT&T Stadium,Texas Tech
+20,Jordan-Hare Stadium,Auburn
+21,Folsom Field,Colorado
 22,Husky Stadium,Washington
-23,Vaught-Hemingway Stadium,Ole Miss
-24,LaVell Edwards Stadium,BYU
-25,Memorial Stadium,Missouri
-26,Jordan-Hare Stadium,Auburn
+23,Memorial Stadium,Missouri
+24,Rice-Eccles Stadium,Utah
+25,Alamodome,UTSA
+26,Vaught-Hemingway Stadium,Ole Miss
 27,Carter-Finley Stadium,NC State
 28,Camp Randall Stadium,Wisconsin
-29,Lane Stadium,Virginia Tech
-30,Alamodome,UTSA
-31,FBC Mortgage Stadium,UCF
-32,Gerald J. Ford Stadium,SMU
-33,Milan Puskar Stadium,West Virginia
-34,Williams-Brice Stadium,South Carolina
-35,Autzen Stadium,Oregon
-36,"Memorial Stadium (Clemson, SC)",Clemson
-37,Hard Rock Stadium,Miami
-38,Huntington Bank Stadium,Minnesota
-39,Boone Pickens Stadium,Oklahoma State
-40,Joe Aillet Stadium,Louisiana Tech
-41,Dowdy-Ficklen Stadium,East Carolina
-42,Simmons Bank Liberty Stadium,Memphis
-43,Amon G. Carter Stadium,TCU
-44,Kroger Field,Kentucky
-45,Reser Stadium,Oregon State
-46,Rose Bowl,UCLA
-47,Spartan Stadium,Michigan State
-48,Yulman Stadium,Tulane
-49,Stanford Stadium,Stanford
-50,Bill Snyder Family Stadium,Kansas State
-51,"Memorial Stadium (Bloomington, IN)",Indiana
-52,California Memorial Stadium,California
-53,DATCU Stadium,North Texas
+29,LaVell Edwards Stadium,BYU
+30,FBC Mortgage Stadium,UCF
+31,Lane Stadium,Virginia Tech
+32,Huntington Bank Stadium,Minnesota
+33,Boone Pickens Stadium,Oklahoma State
+34,Milan Puskar Stadium,West Virginia
+35,Dowdy-Ficklen Stadium,East Carolina
+36,Stanford Stadium,Stanford
+37,Williams-Brice Stadium,South Carolina
+38,Gerald J. Ford Stadium,SMU
+39,Kroger Field,Kentucky
+40,Autzen Stadium,Oregon
+41,Reser Stadium,Oregon State
+42,Rose Bowl,UCLA
+43,California Memorial Stadium,California
+44,Simmons Bank Liberty Stadium,Memphis
+45,Hard Rock Stadium,Miami
+46,"Memorial Stadium (Clemson, SC)",Clemson
+47,Joe Aillet Stadium,Louisiana Tech
+48,Mountain America Stadium,Arizona State
+49,War Memorial Stadium,Wyoming
+50,Amon G. Carter Stadium,TCU
+51,Spartan Stadium,Michigan State
+52,Bill Snyder Family Stadium,Kansas State
+53,Nippert Stadium,Cincinnati
 54,Kinnick Stadium,Iowa
 55,Pratt & Whitney Stadium,UConn
-56,Acrisure Stadium,Pittsburgh
-57,War Memorial Stadium,Wyoming
-58,Nippert Stadium,Cincinnati
-59,Allen E. Paulson Stadium,Georgia Southern
-60,Kenan Stadium,North Carolina
-61,Gesa Field,Washington State
-62,Mountain America Stadium,Arizona State
-63,Lincoln Financial Field,Temple
-64,Raymond James Stadium,South Florida
-65,Davis Wade Stadium,Mississippi State
-66,TDECU Stadium,Houston
-67,Peden Stadium,Ohio
-68,Valley Children's Stadium,Fresno State
-69,Razorback Stadium,Arkansas
-70,Albertsons Stadium,Boise State
-71,Scott Stadium,Virginia
-72,McLane Stadium,Baylor
-73,University Stadium (NM),New Mexico
+56,DATCU Stadium,North Texas
+57,Acrisure Stadium,Pittsburgh
+58,TDECU Stadium,Houston
+59,Yulman Stadium,Tulane
+60,Allen E. Paulson Stadium,Georgia Southern
+61,Kenan Stadium,North Carolina
+62,"Memorial Stadium (Bloomington, IN)",Indiana
+63,Gesa Field,Washington State
+64,Memorial Stadium,Kansas
+65,Ross-Ade Stadium,Purdue
+66,McLane Stadium,Baylor
+67,Lincoln Financial Field,Temple
+68,Raymond James Stadium,South Florida
+69,Davis Wade Stadium,Mississippi State
+70,Valley Children's Stadium,Fresno State
+71,Albertsons Stadium,Boise State
+72,Scott Stadium,Virginia
+73,Razorback Stadium,Arkansas
 74,Glass Bowl,Toledo
-75,Memorial Stadium,Kansas
-76,Malone Stadium,UL Monroe
-77,Ross-Ade Stadium,Purdue
-78,JMA Wireless Dome,Syracuse
-79,Kidd Brewer Stadium,App State
-80,Navy-Marine Corps Memorial Stadium,Navy
-81,Cajun Field,Louisiana
-82,UB Stadium,Buffalo
-83,Bobcat Stadium (TX),Texas State
+75,Bobcat Stadium (TX),Texas State
+76,Peden Stadium,Ohio
+77,Aggie Memorial Stadium,New Mexico State
+78,Falcon Stadium,Air Force
+79,Waldo Stadium,Western Michigan
+80,Malone Stadium,UL Monroe
+81,JMA Wireless Dome,Syracuse
+82,Kidd Brewer Stadium,App State
+83,Cajun Field,Louisiana
 84,Houchens Industries-L.T. Smith Stadium,Western Kentucky
 85,"Johnny ""Red"" Floyd Stadium",Middle Tennessee
-86,Aggie Memorial Stadium,New Mexico State
-87,Falcon Stadium,Air Force
-88,Waldo Stadium,Western Michigan
-89,Centennial Bank Stadium,Arkansas State
-90,Mackay Stadium,Nevada
-91,"Alumni Stadium (Chestnut Hill, MA)",Boston College
-92,SECU Stadium,Maryland
-93,Scheumann Stadium,Ball State
-94,Kelly/Shorts Stadium,Central Michigan
-95,Bobby Dodd Stadium,Georgia Tech
-96,FirstBank Stadium,Vanderbilt
-97,Maverik Stadium,Utah State
-98,Sun Bowl,UTEP
-99,"Memorial Stadium (Champaign, IL)",Illinois
-100,Wallace Wade Stadium,Duke
-101,Yager Stadium,Miami (OH)
-102,Rice Stadium,Rice
-103,S.B. Ballard Stadium,Old Dominion
-104,CEFCU Stadium,San José State
-105,Canvas Stadium,Colorado State
-106,FAU Stadium,Florida Atlantic
-107,M. M. Roberts Stadium,Southern Miss
-108,Allegacy Federal Credit Union Stadium,Wake Forest
-109,Veterans Memorial Stadium (AL),Troy
+86,University Stadium (NM),New Mexico
+87,UB Stadium,Buffalo
+88,Bobby Dodd Stadium,Georgia Tech
+89,Maverik Stadium,Utah State
+90,Kelly/Shorts Stadium,Central Michigan
+91,Navy-Marine Corps Memorial Stadium,Navy
+92,Centennial Bank Stadium,Arkansas State
+93,Mackay Stadium,Nevada
+94,"Alumni Stadium (Chestnut Hill, MA)",Boston College
+95,SECU Stadium,Maryland
+96,Scheumann Stadium,Ball State
+97,FirstBank Stadium,Vanderbilt
+98,Wallace Wade Stadium,Duke
+99,Allegacy Federal Credit Union Stadium,Wake Forest
+100,FAU Stadium,Florida Atlantic
+101,Sun Bowl,UTEP
+102,"Memorial Stadium (Champaign, IL)",Illinois
+103,Yager Stadium,Miami (OH)
+104,Rice Stadium,Rice
+105,S.B. Ballard Stadium,Old Dominion
+106,CEFCU Stadium,San José State
+107,Canvas Stadium,Colorado State
+108,Veterans Memorial Stadium (AL),Troy
+109,M. M. Roberts Stadium,Southern Miss
 110,Joan C. Edwards Stadium,Marshall
-111,Brooks Stadium (SC),Coastal Carolina
-112,Center Parc Stadium,Georgia State
+111,Center Parc Stadium,Georgia State
+112,Brooks Stadium (SC),Coastal Carolina
 113,Rynearson Stadium,Eastern Michigan
 114,Chapman Stadium,Tulsa
 115,InfoCision Stadium,Akron
 116,Huskie Stadium,Northern Illinois
-117,Jerry Richardson Stadium,Charlotte
-118,Doyt L. Perry Stadium,Bowling Green
+117,Doyt L. Perry Stadium,Bowling Green
+118,Jerry Richardson Stadium,Charlotte
