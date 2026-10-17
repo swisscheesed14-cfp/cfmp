@@ -22,16 +22,26 @@ SCHEDULE_DIR = Path("data/schedules")
 FIRST_SEASON = 2014
 
 
+def _pause(response: httpx.Response, attempt: int) -> None:
+    """Wait out a rate limit. CollegeFootballData asks for longer than a couple of seconds."""
+    header = response.headers.get("Retry-After")
+    try:
+        pause = float(header) if header else 20 * (attempt + 1)
+    except ValueError:
+        pause = 20 * (attempt + 1)
+    time.sleep(min(max(pause, 5), 90))
+
+
 def _get(path: str, params: dict) -> list:
     if not SETTINGS.cfbd_key:
         raise SystemExit("CFBD_KEY is not set.")
     headers = {"Authorization": f"Bearer {SETTINGS.cfbd_key}", "Accept": "application/json"}
-    for attempt in range(4):
+    for attempt in range(5):
         response = httpx.get(BASE + path, params=params, headers=headers, timeout=120)
         if response.status_code == 200:
             return response.json()
-        if response.status_code in (429, 500, 502, 503) and attempt < 3:
-            time.sleep(1.5 * (attempt + 1))
+        if response.status_code in (429, 500, 502, 503) and attempt < 4:
+            _pause(response, attempt)
             continue
         response.raise_for_status()
     return []
@@ -204,11 +214,25 @@ def refresh(now: datetime | None = None) -> None:
         if path.exists() and year != end:
             continue
         print(f"schedule {year}", flush=True)
-        pd.DataFrame(_schedule_rows(year)).to_parquet(path, index=False)
+        try:
+            rows = _schedule_rows(year)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429 and path.exists():
+                print(f"schedule {year} is rate limited, keeping the file on disk", flush=True)
+                continue
+            raise
+        pd.DataFrame(rows).to_parquet(path, index=False)
     if SNAPS_PATH.exists():
         held = pd.read_parquet(SNAPS_PATH)
         held = held[held["season"] != end]
-        fresh = pd.concat([held, _season_frame(end)], ignore_index=True)
+        try:
+            fresh_year = _season_frame(end)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                print("snaps are rate limited, keeping the file on disk", flush=True)
+                return
+            raise
+        fresh = pd.concat([held, fresh_year], ignore_index=True)
     else:
         fresh = pd.concat([_season_frame(year) for year in years], ignore_index=True)
     SNAPS_PATH.parent.mkdir(parents=True, exist_ok=True)

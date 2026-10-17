@@ -21,6 +21,15 @@ def _get(path: str, params: dict[str, Any] | None = None) -> Any:
                 r = c.get(path, params=params)
                 r.raise_for_status()
                 return r.json()
+        except httpx.HTTPStatusError as exc:
+            if attempt == 3:
+                raise
+            header = exc.response.headers.get("Retry-After")
+            try:
+                pause = float(header) if header else 15 * (attempt + 1)
+            except ValueError:
+                pause = 15 * (attempt + 1)
+            time.sleep(min(max(pause, 5), 90))
         except Exception:
             if attempt == 3:
                 raise
