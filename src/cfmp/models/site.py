@@ -23,6 +23,8 @@ MIN_VENUE_GAMES = 40
 RESULT_WEIGHT = 0.40
 CAPACITY_WEIGHT = 0.30
 ATTENDANCE_WEIGHT = 0.30
+STREAK_WEIGHT = 0.15
+STREAK_CAP = 8
 
 
 def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -180,7 +182,27 @@ def _venue_home_field(schedule: pd.DataFrame, season: int) -> tuple[dict[int, fl
     return venues, league
 
 
+def home_streaks(schedule: pd.DataFrame) -> dict[str, int]:
+    """Consecutive home wins right now. A home loss resets it to zero."""
+    frame = schedule[schedule["home_points"].notna() & schedule["away_points"].notna()].copy()
+    frame = frame[~frame["neutral_site"].fillna(False).astype(bool)]
+    frame["season"] = pd.to_numeric(frame["season"], errors="coerce")
+    frame["week"] = pd.to_numeric(frame["week"], errors="coerce")
+    frame = frame.sort_values(["home_team", "season", "week", "game_id"])
+    streaks: dict[str, int] = {}
+    for team, games in frame.groupby("home_team"):
+        streak = 0
+        for row in games.itertuples(index=False):
+            streak = streak + 1 if float(row.home_points) > float(row.away_points) else 0
+        streaks[str(team)] = streak
+    return streaks
+
+
 def _z(values: pd.Series) -> pd.Series:
+    spread = float(values.std(ddof=0))
+    if spread < 1e-8:
+        return pd.Series(0.0, index=values.index)
+    return (values - float(values.mean())) / spread
     spread = float(values.std(ddof=0))
     if spread < 1e-8:
         return pd.Series(0.0, index=values.index)
@@ -230,7 +252,13 @@ def stadium_table(schedule: pd.DataFrame, season: int) -> pd.DataFrame:
     if not rows:
         return pd.DataFrame(columns=["venue_id", "stadium", "team", "score", "points"])
     out = pd.DataFrame(rows)
-    out["score"] = RESULT_WEIGHT * _z(out["edge"]) + CAPACITY_WEIGHT * _z(out["capacity"]) + ATTENDANCE_WEIGHT * _z(out["attendance"])
+    out["streak"] = out["team"].map(home_streaks(schedule)).fillna(0).clip(upper=STREAK_CAP)
+    out["score"] = (
+        RESULT_WEIGHT * _z(out["edge"])
+        + CAPACITY_WEIGHT * _z(out["capacity"])
+        + ATTENDANCE_WEIGHT * _z(out["attendance"])
+        + STREAK_WEIGHT * _z(out["streak"])
+    )
     span = float(out["score"].max() - out["score"].min())
     if span < 1e-8:
         out["points"] = (HOME_FLOOR + HOME_CAP) / 2
