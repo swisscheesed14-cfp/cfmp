@@ -88,6 +88,7 @@ def _schedule_rows(year: int) -> list[dict]:
                 "conference_game": bool(game.get("conferenceGame")),
                 "venue": game.get("venue"),
                 "venue_id": game.get("venueId"),
+                "attendance": game.get("attendance"),
             }
         )
     return rows

@@ -202,14 +202,12 @@ def _z(values: pd.Series) -> pd.Series:
     if spread < 1e-8:
         return pd.Series(0.0, index=values.index)
     return (values - float(values.mean())) / spread
-    spread = float(values.std(ddof=0))
-    if spread < 1e-8:
-        return pd.Series(0.0, index=values.index)
-    return (values - float(values.mean())) / spread
 
 
 def _crowd(schedule: pd.DataFrame, season: int) -> pd.DataFrame:
     """Biggest crowd and the usual crowd at each stadium over the same ten years."""
+    if "attendance" not in schedule.columns:
+        return pd.DataFrame(columns=["capacity", "attendance"])
     frame = schedule.copy()
     frame["season"] = pd.to_numeric(frame["season"], errors="coerce")
     frame["attendance"] = pd.to_numeric(frame["attendance"], errors="coerce")

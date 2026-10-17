@@ -30,9 +30,13 @@ jobs:
           path: |
             data/cfbd/game_model.parquet
             data/schedules
-          key: fpi-snaps-v1-${{ github.run_id }}
+          key: fpi-snaps-v2-${{ github.run_id }}
           restore-keys: |
+            fpi-snaps-v2-
             fpi-snaps-v1-
+
+      - name: Keep the saved schedules
+        run: git checkout -- data/schedules || true
 
       - name: Install
         run: pip install -e .

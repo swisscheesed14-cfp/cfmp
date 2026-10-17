@@ -11,3 +11,5 @@ data/*
 !data/venues_min.parquet
 !data/reports/
 !data/reports/**
+!data/schedules/
+!data/schedules/*.parquet
