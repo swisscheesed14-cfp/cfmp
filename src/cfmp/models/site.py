@@ -18,6 +18,11 @@ CROWD_CAP = 1.5
 VENUE_PRIOR = 25
 HOME_FLOOR = 0.5
 HOME_CAP = 3.5
+MIN_VENUE_GAMES = 40
+# The ten-year result still leads. Size and the crowd that actually shows up are the rest.
+RESULT_WEIGHT = 0.40
+CAPACITY_WEIGHT = 0.30
+ATTENDANCE_WEIGHT = 0.30
 
 
 def haversine_miles(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -175,15 +180,75 @@ def _venue_home_field(schedule: pd.DataFrame, season: int) -> tuple[dict[int, fl
     return venues, league
 
 
+def _z(values: pd.Series) -> pd.Series:
+    spread = float(values.std(ddof=0))
+    if spread < 1e-8:
+        return pd.Series(0.0, index=values.index)
+    return (values - float(values.mean())) / spread
+
+
+def _crowd(schedule: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Biggest crowd and the usual crowd at each stadium over the same ten years."""
+    frame = schedule.copy()
+    frame["season"] = pd.to_numeric(frame["season"], errors="coerce")
+    frame["attendance"] = pd.to_numeric(frame["attendance"], errors="coerce")
+    frame["venue_id"] = pd.to_numeric(frame["venue_id"], errors="coerce")
+    years = frame["season"].between(season - 10, season - 1) & frame["season"].ne(2020)
+    frame = frame[years & frame["attendance"].gt(0) & frame["venue_id"].notna()]
+    if frame.empty:
+        return pd.DataFrame(columns=["capacity", "attendance"])
+    grouped = frame.groupby("venue_id")["attendance"]
+    return pd.DataFrame({"capacity": grouped.max(), "attendance": grouped.median()})
+
+
+def stadium_table(schedule: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Current buildings scored by the ten-year result, capacity, and the crowd that shows up."""
+    venues, _league = _venue_home_field(schedule, season)
+    crowd = _crowd(schedule, season)
+    frame = schedule[pd.to_numeric(schedule["season"], errors="coerce") == season].copy()
+    frame = frame[~frame["neutral_site"].fillna(False).astype(bool)]
+    if "home_division" in frame.columns:
+        frame = frame[frame["home_division"].astype(str).str.lower().eq("fbs")]
+    frame["venue_id"] = pd.to_numeric(frame["venue_id"], errors="coerce")
+    rows = []
+    for venue_id, games in frame.groupby("venue_id"):
+        found = venues.get(int(venue_id))
+        if found is None or found[1] < MIN_VENUE_GAMES or int(venue_id) not in crowd.index:
+            continue
+        stadium = str(games["venue"].dropna().mode().iloc[0]) if games["venue"].notna().any() else str(int(venue_id))
+        team = str(games["home_team"].dropna().mode().iloc[0])
+        rows.append(
+            {
+                "venue_id": int(venue_id),
+                "stadium": stadium,
+                "team": team,
+                "edge": float(found[0]),
+                "capacity": float(crowd.at[int(venue_id), "capacity"]),
+                "attendance": float(crowd.at[int(venue_id), "attendance"]),
+            }
+        )
+    if not rows:
+        return pd.DataFrame(columns=["venue_id", "stadium", "team", "score", "points"])
+    out = pd.DataFrame(rows)
+    out["score"] = RESULT_WEIGHT * _z(out["edge"]) + CAPACITY_WEIGHT * _z(out["capacity"]) + ATTENDANCE_WEIGHT * _z(out["attendance"])
+    span = float(out["score"].max() - out["score"].min())
+    if span < 1e-8:
+        out["points"] = (HOME_FLOOR + HOME_CAP) / 2
+    else:
+        out["points"] = HOME_FLOOR + (out["score"] - float(out["score"].min())) / span * (HOME_CAP - HOME_FLOOR)
+    return out
+
+
 def home_edges(schedule: pd.DataFrame, season: int, league_hfa: float = 3.0) -> pd.Series:
     """Points added on top of the model's home field. Neutral sites stay at zero.
 
-    The result is a ten-year stadium number, not a night-game or capacity bump.
-    An average building comes out a little under the model's home field.
+    A big full stadium can rank ahead of a smaller one with a lucky decade.
+    The points stay between 0.5 and 3.5.
     """
     if "venue_id" not in schedule.columns:
         return pd.Series(dtype=float)
-    venues, _league = _venue_home_field(schedule, season)
+    table = stadium_table(schedule, season).set_index("venue_id")["points"]
+    venues, league = _venue_home_field(schedule, season)
     frame = schedule[pd.to_numeric(schedule["season"], errors="coerce") == season]
     extras = {}
     for row in frame.itertuples(index=False):
@@ -194,32 +259,21 @@ def home_edges(schedule: pd.DataFrame, season: int, league_hfa: float = 3.0) -> 
             extras[int(game_id)] = 0.0
             continue
         venue = pd.to_numeric(getattr(row, "venue_id", None), errors="coerce")
-        found = venues.get(int(venue)) if pd.notna(venue) else None
-        total = found[0] if found else _league
-        total = max(HOME_FLOOR, min(HOME_CAP, float(total)))
+        if pd.notna(venue) and int(venue) in table.index:
+            total = float(table.at[int(venue)])
+        else:
+            found = venues.get(int(venue)) if pd.notna(venue) else None
+            total = found[0] if found else league
+            total = max(HOME_FLOOR, min(HOME_CAP, float(total)))
         extras[int(game_id)] = float(total) - float(league_hfa)
     return pd.Series(extras, dtype=float)
 
 
 def toughest_places(schedule: pd.DataFrame, season: int) -> pd.DataFrame:
     """Current stadiums, hardest first. The point value is not in the file."""
-    venues, _league = _venue_home_field(schedule, season)
-    frame = schedule[pd.to_numeric(schedule["season"], errors="coerce") == season].copy()
-    frame = frame[~frame["neutral_site"].fillna(False).astype(bool)]
-    if "home_division" in frame.columns:
-        frame = frame[frame["home_division"].astype(str).str.lower().eq("fbs")]
-    frame["venue_id"] = pd.to_numeric(frame["venue_id"], errors="coerce")
-    frame = frame[frame["venue_id"].notna()]
-    rows = []
-    for venue_id, games in frame.groupby("venue_id"):
-        found = venues.get(int(venue_id))
-        if found is None or found[1] < 40:
-            continue
-        stadium = str(games["venue"].dropna().mode().iloc[0]) if games["venue"].notna().any() else str(int(venue_id))
-        team = str(games["home_team"].dropna().mode().iloc[0])
-        rows.append({"stadium": stadium, "team": team, "score": float(found[0])})
-    if not rows:
+    table = stadium_table(schedule, season)
+    if table.empty:
         return pd.DataFrame(columns=["rank", "stadium", "team"])
-    out = pd.DataFrame(rows).sort_values(["score", "stadium"], ascending=[False, True]).reset_index(drop=True)
+    out = table.sort_values(["score", "stadium"], ascending=[False, True]).reset_index(drop=True)
     out.insert(0, "rank", out.index + 1)
     return out[["rank", "stadium", "team"]]
