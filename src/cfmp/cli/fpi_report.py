@@ -197,9 +197,7 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
 
 def _with_quarterback(board: pd.DataFrame, dock: pd.Series) -> pd.DataFrame:
     out = board.copy()
-    out["qb"] = out["team"].map(dock).fillna(0.0)
-    out["fpi"] = (out["fpi"] - out["qb"]).round(3)
-    out["qb"] = out["qb"].round(2)
+    out["fpi"] = (out["fpi"] - out["team"].map(dock).fillna(0.0)).round(3)
     out = out.sort_values(["fpi", "team"], ascending=[False, True]).reset_index(drop=True)
     out["rank"] = out.index + 1
     return out
@@ -209,10 +207,6 @@ def publish_boards(profile: pd.DataFrame, weights, week: int, dock: pd.Series) -
     top = _with_quarterback(top25(profile, weights)[["rank", "team", "fpi", "games"]], dock)
     full = _with_quarterback(fpi_board(profile, weights)[["rank", "team", "fpi", "games"]], dock)
     schedules = sos_board(profile, weights)[["rank", "team", "sos", "games"]].copy()
-    schedules["fpi"] = (
-        fpi_board(profile, weights).set_index("team")["fpi"].reindex(schedules["team"]).to_numpy()
-        - schedules["team"].map(dock).fillna(0.0).to_numpy()
-    ).round(3)
     folder = OUT / f"{SEASON}-w{week:02d}"
     _write(top, folder / "fpi_top25.csv")
     _write(full, folder / "fpi.csv")

@@ -1,26 +1,26 @@
-rank,team,fpi,games,qb
-1,Alabama,11.095,6,0.0
-2,LSU,10.386,5,0.0
-3,Ohio State,10.122,6,0.0
-4,Texas,9.178,5,0.0
-5,Notre Dame,8.764,6,0.0
-6,Georgia,7.762,5,0.0
-7,Indiana,7.146,5,0.0
-8,Utah,6.866,4,0.0
-9,Wisconsin,6.123,4,0.0
-10,Missouri,5.952,5,0.0
-11,UCLA,5.893,5,0.0
-12,Miami,5.867,4,0.0
-13,Ole Miss,5.556,5,0.0
-14,South Carolina,5.553,5,0.0
-15,Houston,5.269,5,0.0
-16,Mississippi State,5.118,5,0.0
-17,Oklahoma,4.897,5,0.0
-18,BYU,4.597,4,0.0
-19,Wake Forest,4.542,6,0.0
-20,Louisville,4.325,5,0.0
-21,Texas Tech,4.225,4,0.0
-22,Nebraska,4.171,5,0.0
-23,Northwestern,4.055,4,0.0
-24,Kentucky,4.021,5,0.0
-25,Oregon,3.884,4,0.0
+rank,team,fpi,games
+1,Alabama,11.095,6
+2,LSU,10.386,5
+3,Ohio State,10.122,6
+4,Texas,9.178,5
+5,Notre Dame,8.764,6
+6,Georgia,7.762,5
+7,Indiana,7.146,5
+8,Utah,6.866,4
+9,Wisconsin,6.123,4
+10,Missouri,5.952,5
+11,UCLA,5.893,5
+12,Miami,5.867,4
+13,Ole Miss,5.556,5
+14,South Carolina,5.553,5
+15,Houston,5.269,5
+16,Mississippi State,5.118,5
+17,Oklahoma,4.897,5
+18,BYU,4.597,4
+19,Wake Forest,4.542,6
+20,Louisville,4.325,5
+21,Texas Tech,4.225,4
+22,Nebraska,4.171,5
+23,Northwestern,4.055,4
+24,Kentucky,4.021,5
+25,Oregon,3.884,4
