@@ -1,139 +1,139 @@
 rank,team,fpi,games
-1,LSU,11.376,6
-2,Ohio State,10.252,7
-3,Alabama,10.052,7
-4,Texas,9.775,6
-5,Indiana,8.416,6
-6,Georgia,8.151,6
-7,Ole Miss,7.598,6
-8,Notre Dame,7.517,7
-9,UCLA,7.315,6
-10,Miami,6.291,5
-11,Utah,6.207,5
-12,BYU,6.101,5
-13,Oregon,5.729,5
-14,Houston,5.728,6
-15,Oklahoma,5.58,6
-16,Oklahoma State,5.437,5
-17,Texas Tech,5.186,5
-18,Tennessee,5.103,6
-19,Wisconsin,5.021,5
-20,Wake Forest,4.998,7
-21,Northwestern,4.75,5
-22,South Carolina,4.691,5
-23,Texas State,4.561,5
-24,Louisville,4.538,6
-25,Mississippi State,4.447,6
-26,Pittsburgh,4.443,6
-27,Arizona,4.318,5
-28,TCU,4.236,5
-29,Missouri,3.965,6
-30,Michigan,3.93,6
-31,Nebraska,3.911,6
-32,Florida,3.822,6
-33,Colorado,3.776,5
-34,Oregon State,3.667,6
-35,USC,3.546,7
-36,UCF,3.316,5
-37,North Carolina,3.262,5
-38,Virginia Tech,3.227,6
-39,Kentucky,3.208,6
-40,Iowa,3.193,5
-41,Navy,3.017,5
-42,North Texas,3.011,5
-43,Auburn,2.992,6
-44,SMU,2.849,5
-45,Clemson,2.629,5
-46,Florida State,2.423,6
-47,Vanderbilt,2.195,6
-48,Baylor,2.194,5
-49,Michigan State,2.086,7
-50,Toledo,2.033,6
-51,Georgia State,1.893,5
-52,Georgia Tech,1.818,5
-53,North Dakota State,1.794,6
-54,Kansas State,1.723,5
-55,Air Force,1.673,5
-56,Kansas,1.569,5
-57,Illinois,1.422,5
-58,Duke,1.32,5
-59,Boston College,1.113,5
-60,UTSA,0.983,6
-61,Boise State,0.942,5
-62,Memphis,0.838,6
-63,James Madison,0.831,6
-64,Liberty,0.804,5
-65,Georgia Southern,0.593,6
-66,Penn State,0.466,7
-67,Syracuse,0.302,5
-68,Iowa State,0.148,5
-69,Louisiana,0.083,6
-70,Washington,-0.048,6
-71,Arkansas,-0.05,6
-72,Nevada,-0.292,5
-73,Tulsa,-0.365,6
-74,Cincinnati,-0.395,5
-75,Texas A&M,-0.539,6
-76,Purdue,-0.719,6
-77,Virginia,-1.093,6
-78,Arizona State,-1.199,5
-79,Rutgers,-1.225,5
-80,West Virginia,-1.365,6
-81,Louisiana Tech,-1.457,5
-82,Utah State,-1.542,5
-83,Troy,-1.59,5
-84,UNLV,-1.649,7
-85,New Mexico,-1.679,5
-86,New Mexico State,-1.706,5
-87,Jacksonville State,-1.965,6
-88,Maryland,-1.993,6
-89,Massachusetts,-2.057,5
-90,NC State,-2.071,5
-91,Florida International,-2.274,5
-92,Temple,-2.428,6
-93,UAB,-2.435,6
-94,California,-2.437,6
-95,East Carolina,-2.532,5
-96,Western Michigan,-2.822,6
-97,San José State,-2.944,6
-98,Minnesota,-3.043,5
-99,Miami (OH),-3.119,6
-100,Kennesaw State,-3.162,5
-101,Wyoming,-3.228,6
-102,Rice,-3.28,6
-103,Army,-3.297,5
-104,Florida Atlantic,-3.322,5
-105,Northern Illinois,-3.476,5
-106,Washington State,-3.483,6
-107,Colorado State,-3.5,5
-108,Tulane,-3.586,6
-109,Delaware,-3.65,5
-110,San Diego State,-3.815,6
-111,Arkansas State,-3.884,6
-112,UConn,-3.937,5
-113,Fresno State,-4.055,7
-114,Ohio,-4.06,6
-115,Sam Houston,-4.341,5
-116,South Florida,-4.51,6
-117,South Alabama,-4.741,5
-118,Eastern Michigan,-4.76,7
-119,Western Kentucky,-4.811,6
-120,App State,-4.918,5
-121,Southern Miss,-5.031,5
-122,Old Dominion,-5.04,6
-123,Coastal Carolina,-5.076,6
-124,Charlotte,-5.289,6
-125,Marshall,-5.314,5
-126,Ball State,-5.4,6
-127,Buffalo,-5.844,5
-128,Central Michigan,-5.941,6
-129,Missouri State,-6.094,5
-130,Akron,-6.174,6
-131,UTEP,-6.249,6
-132,Stanford,-6.252,6
-133,Hawai'i,-6.406,7
-134,Middle Tennessee,-7.118,5
-135,Bowling Green,-7.442,6
-136,Sacramento State,-7.505,6
-137,UL Monroe,-7.91,5
-138,Kent State,-8.21,6
+1,Ohio State,10.172,7
+2,LSU,10.137,6
+3,Alabama,9.291,7
+4,Texas,8.731,6
+5,Indiana,8.32,6
+6,Georgia,8.272,6
+7,UCLA,8.112,6
+8,Notre Dame,7.917,7
+9,Ole Miss,7.899,6
+10,BYU,7.009,5
+11,Miami,6.84,5
+12,Houston,6.836,6
+13,Utah,6.775,5
+14,Tennessee,6.431,6
+15,Texas Tech,6.255,5
+16,Oregon,5.962,5
+17,Oklahoma State,5.69,5
+18,Wake Forest,5.507,7
+19,Northwestern,5.431,5
+20,Arizona,4.971,5
+21,Wisconsin,4.643,5
+22,Kentucky,4.629,6
+23,Nebraska,4.592,6
+24,Oklahoma,4.544,6
+25,Louisville,4.523,6
+26,Florida,4.397,6
+27,USC,4.328,7
+28,TCU,4.284,5
+29,Missouri,4.266,6
+30,Mississippi State,4.034,6
+31,Pittsburgh,3.984,6
+32,Oregon State,3.942,6
+33,South Carolina,3.795,5
+34,Iowa,3.65,5
+35,Texas State,3.558,5
+36,Auburn,3.483,6
+37,UCF,3.381,5
+38,North Carolina,3.283,5
+39,Virginia Tech,3.137,6
+40,Clemson,3.069,5
+41,Michigan,2.991,6
+42,North Texas,2.763,5
+43,Boise State,2.713,5
+44,Baylor,2.697,5
+45,North Dakota State,2.685,6
+46,Colorado,2.55,5
+47,James Madison,2.536,6
+48,SMU,2.467,5
+49,Air Force,2.213,5
+50,Florida State,2.137,6
+51,UTSA,1.756,6
+52,Navy,1.656,5
+53,Kansas State,1.596,5
+54,Liberty,1.405,5
+55,Duke,1.321,5
+56,Georgia State,1.287,5
+57,Toledo,1.182,6
+58,Michigan State,1.027,7
+59,Vanderbilt,0.961,6
+60,Memphis,0.893,6
+61,Illinois,0.827,5
+62,Boston College,0.506,5
+63,Penn State,0.358,7
+64,Georgia Tech,0.335,5
+65,Louisiana,0.294,6
+66,Georgia Southern,0.238,6
+67,Arkansas,0.166,6
+68,Washington,0.163,6
+69,Iowa State,0.139,5
+70,Kansas,0.048,5
+71,Cincinnati,-0.046,5
+72,Texas A&M,-0.136,6
+73,New Mexico,-0.318,5
+74,Tulsa,-0.459,6
+75,Purdue,-0.693,6
+76,Nevada,-0.81,5
+77,Syracuse,-0.82,5
+78,UNLV,-1.037,7
+79,Louisiana Tech,-1.099,5
+80,West Virginia,-1.102,6
+81,Arizona State,-1.273,5
+82,Jacksonville State,-1.274,6
+83,Virginia,-1.352,6
+84,NC State,-1.531,5
+85,Rutgers,-1.537,5
+86,Western Michigan,-1.642,6
+87,Utah State,-1.675,5
+88,Florida International,-2.034,5
+89,Army,-2.117,5
+90,California,-2.245,6
+91,Minnesota,-2.246,5
+92,Troy,-2.333,5
+93,UAB,-2.511,6
+94,Maryland,-2.567,6
+95,Fresno State,-2.71,7
+96,East Carolina,-2.724,5
+97,Ohio,-2.908,6
+98,New Mexico State,-3.017,5
+99,Florida Atlantic,-3.022,5
+100,Miami (OH),-3.095,6
+101,Tulane,-3.181,6
+102,South Florida,-3.215,6
+103,Wyoming,-3.231,6
+104,UConn,-3.292,5
+105,Massachusetts,-3.321,5
+106,Colorado State,-3.336,5
+107,San José State,-3.36,6
+108,San Diego State,-3.601,6
+109,South Alabama,-3.652,5
+110,Temple,-3.835,6
+111,Arkansas State,-3.991,6
+112,Kennesaw State,-4.003,5
+113,Western Kentucky,-4.16,6
+114,Washington State,-4.449,6
+115,Northern Illinois,-4.507,5
+116,App State,-4.569,5
+117,Buffalo,-4.615,5
+118,Eastern Michigan,-4.967,7
+119,Rice,-5.017,6
+120,Delaware,-5.018,5
+121,Charlotte,-5.312,6
+122,Stanford,-5.315,6
+123,Ball State,-5.337,6
+124,Marshall,-5.341,5
+125,Old Dominion,-5.534,6
+126,Central Michigan,-5.716,6
+127,Sam Houston,-5.81,5
+128,Coastal Carolina,-5.95,6
+129,Southern Miss,-6.249,5
+130,Middle Tennessee,-6.295,5
+131,Missouri State,-6.348,5
+132,Bowling Green,-6.62,6
+133,UTEP,-7.144,6
+134,Kent State,-7.575,6
+135,Hawai'i,-7.631,7
+136,Akron,-7.992,6
+137,UL Monroe,-8.352,5
+138,Sacramento State,-9.321,6
