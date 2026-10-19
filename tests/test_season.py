@@ -104,8 +104,27 @@ def test_reports_share_one_ranking() -> None:
     assert set(sos["team"]) == set(full["team"])
 
 
-if __name__ == "__main__":
-    test_current_season_does_not_set_the_weights()
-    test_average_team_is_the_middle_of_this_season()
-    test_reports_share_one_ranking()
-    print("season ok")
+def test_next_slate_skips_played_games() -> None:
+    from cfmp.models.season import next_slate
+
+    schedule = pd.DataFrame(
+        [
+            {"season": 2026, "week": 6, "home_points": 21, "home_division": "fbs", "away_division": "fbs", "home_team": "A", "away_team": "B"},
+            {"season": 2026, "week": 7, "home_points": 10, "home_division": "fbs", "away_division": "fbs", "home_team": "C", "away_team": "D"},
+            {"season": 2026, "week": 7, "home_points": None, "home_division": "fbs", "away_division": "fbs", "home_team": "E", "away_team": "F"},
+            {"season": 2026, "week": 8, "home_points": None, "home_division": "fbs", "away_division": "fbs", "home_team": "G", "away_team": "H"},
+        ]
+    )
+    slate = next_slate(schedule, 2026, through_week=6)
+    assert list(slate["home_team"]) == ["E"]
+
+
+def test_a_win_counts_and_a_blowout_is_capped() -> None:
+    from cfmp.models.season import recency_weight, result_points
+
+    assert result_points(1) == 7
+    assert result_points(40) == 20
+    assert result_points(-28) == -20
+    # A one-point home win stays a win after removing about 2.5 points of home field.
+    assert result_points(1, site=2.5) > 0
+    assert abs(recency_weight(2, 7) - 0.70) < 1e-9

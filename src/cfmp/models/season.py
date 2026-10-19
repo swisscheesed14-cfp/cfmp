@@ -52,6 +52,15 @@ SHRINK_GAMES = 3
 SIMS = 4000
 # A game against a bottom-tier opponent counts this fraction of a game against a top one.
 SOS_FLOOR = 0.35
+# The result is 30% of the rating. Snaps stay 70%. A win is worth this many
+# points even when the snaps were a tie, and the margin adds no more than the cap.
+RESULT_WEIGHT = 0.30
+WIN_POINTS = 6.0
+MARGIN_CAP = 14.0
+# A Week 2 game is worth about 70% of a Week 7 game. Older than that keeps fading
+# until the floor.
+RECENCY_PER_WEEK = 0.06
+RECENCY_FLOOR = 0.55
 # The rating gap is not fully trusted until the shorter sample is long.
 TRUST_PRIOR = 8
 # Two teams this far above average do not get a blowout number.
@@ -201,6 +210,25 @@ def fit_weights(games: pd.DataFrame, train_through: int = 2025) -> Weights:
     )
 
 
+def recency_weight(week: float, through_week: float) -> float:
+    """Newer games count more. Five weeks back is about 70% of this week."""
+    age = max(0.0, float(through_week) - float(week))
+    return max(RECENCY_FLOOR, 1.0 - RECENCY_PER_WEEK * age)
+
+
+def result_points(margin: float, site: float = 0.0) -> float:
+    """Win or loss first, then the margin, capped.
+
+    `site` is the home-field points already inside the score, subtracted so a
+    home win is not bigger just because it was at home. The sign stays with
+    the actual result, so a one-point home win is still a win.
+    """
+    if not np.isfinite(margin) or margin == 0:
+        return 0.0
+    bonus = WIN_POINTS if margin > 0 else -WIN_POINTS
+    return bonus + float(np.clip(margin - site, -MARGIN_CAP, MARGIN_CAP))
+
+
 def _weighted_mean(values: pd.Series, weights: pd.Series, teams: pd.Series) -> pd.Series:
     frame = pd.DataFrame({"v": values.to_numpy(), "w": weights.to_numpy(), "team": teams.to_numpy()})
     frame = frame[np.isfinite(frame["v"]) & np.isfinite(frame["w"])]
@@ -244,10 +272,14 @@ def _current_means(
     Opponent strength is this model's rating, recomputed until it stops moving.
     It is not an outside poll.
     """
-    info = schedule.loc[schedule["season"] == season, ["game_id", "home_team", "away_team", "home_division", "away_division"]]
+    info = schedule.loc[
+        schedule["season"] == season,
+        ["game_id", "home_team", "away_team", "home_division", "away_division", "home_points", "away_points", "neutral_site"],
+    ]
     snaps = advanced.loc[advanced["season"] == season].merge(info, on="game_id", how="inner")
     snaps = snaps[(snaps["team"] == snaps["home_team"]) | (snaps["team"] == snaps["away_team"])]
     snaps["opponent"] = np.where(snaps["team"] == snaps["home_team"], snaps["away_team"], snaps["home_team"])
+    snaps["at_home"] = snaps["team"] == snaps["home_team"]
     snaps["is_fbs"] = np.where(
         snaps["team"] == snaps["home_team"],
         snaps["home_division"].astype(str).str.lower().eq("fbs"),
@@ -257,6 +289,20 @@ def _current_means(
     snaps = snaps[snaps["team"].isin(fbs_names) & snaps["opponent"].isin(fbs_names)].copy()
     if through_week is not None and "week" in snaps.columns:
         snaps = snaps[pd.to_numeric(snaps["week"], errors="coerce") <= through_week]
+    current = float(snaps["week"].max()) if "week" in snaps.columns and len(snaps) else 1.0
+    if through_week is not None:
+        current = float(through_week)
+    snaps["recency"] = snaps["week"].map(lambda week: recency_weight(week, current))
+    hfa = 0.0 if weights is None else float(weights.hfa)
+    neutral = snaps["neutral_site"].fillna(False).astype(bool)
+    site = np.where(neutral, 0.0, np.where(snaps["at_home"], hfa, -hfa))
+    margin = np.where(snaps["at_home"], snaps["home_points"] - snaps["away_points"], snaps["away_points"] - snaps["home_points"])
+    snaps["margin"] = pd.to_numeric(margin, errors="coerce")
+    snaps["result_raw"] = [
+        result_points(float(scored), float(field)) if np.isfinite(scored) else np.nan
+        for scored, field in zip(snaps["margin"], site)
+    ]
+    snaps["result_weight"] = np.where(np.isfinite(snaps["result_raw"]), snaps["recency"], 0.0)
     off_cols = [off for off, _, _ in STATS]
     def_cols = [deff for _, deff, _ in STATS]
     offense = snaps.groupby("team")[off_cols].mean()
@@ -268,7 +314,7 @@ def _current_means(
         league_off = offense.mean()
         league_def = defense.mean()
         percentile = rating.rank(pct=True).fillna(0.5)
-        game_weight = SOS_FLOOR + (1.0 - SOS_FLOOR) * snaps["opponent"].map(percentile).fillna(0.5)
+        game_weight = (SOS_FLOOR + (1.0 - SOS_FLOOR) * snaps["opponent"].map(percentile).fillna(0.5)) * snaps["recency"]
         new_off = {}
         for column, (_, def_column, _) in zip(off_cols, STATS):
             opp_def = snaps["opponent"].map(defense[def_column])
@@ -281,7 +327,10 @@ def _current_means(
             new_def[column] = _weighted_mean(piece, game_weight, snaps["team"])
         offense = pd.DataFrame(new_off).reindex(teams)
         defense = pd.DataFrame(new_def).reindex(teams)
-        rating = _score_means(offense, defense, weights).reindex(teams).fillna(0.0)
+        snap_rating = _score_means(offense, defense, weights).reindex(teams).fillna(0.0)
+        demonstrated = snaps["result_raw"] + snaps["opponent"].map(rating).fillna(0.0)
+        result_rating = _weighted_mean(demonstrated, snaps["result_weight"], snaps["team"]).reindex(teams).fillna(0.0)
+        rating = (1.0 - RESULT_WEIGHT) * snap_rating + RESULT_WEIGHT * result_rating
     league_off = offense.mean()
     league_def = defense.mean()
     shrink = games / (games + SHRINK_GAMES)
@@ -289,9 +338,12 @@ def _current_means(
         offense[column] = shrink * offense[column] + (1.0 - shrink) * league_off[column]
     for column in def_cols:
         defense[column] = shrink * defense[column] + (1.0 - shrink) * league_def[column]
-    rating = _score_means(offense, defense, weights).reindex(teams).fillna(0.0)
+    snap_rating = _score_means(offense, defense, weights).reindex(teams).fillna(0.0)
+    result_rating = (shrink * result_rating).reindex(teams).fillna(0.0)
+    rating = (1.0 - RESULT_WEIGHT) * snap_rating + RESULT_WEIGHT * result_rating
     sos = snaps.groupby("team")["opponent"].apply(lambda opponents: float(rating.reindex(opponents).mean()))
     profile = pd.concat([games, offense, defense], axis=1)
+    profile["result_rating"] = result_rating
     profile["sos"] = sos
     profile["fbs"] = True
     profile["season"] = season
@@ -337,6 +389,9 @@ def rate_season(profile: pd.DataFrame, weights: Weights, min_games: int = MIN_CU
             offense_above = board[off] - league_off[off]
             defense_above = league_def[deff] - board[deff]
             rating = rating + coef * (offense_above + defense_above)
+    if "result_rating" in board.columns:
+        result = pd.to_numeric(board["result_rating"], errors="coerce").fillna(pd.Series(rating, index=board.index))
+        rating = (1.0 - RESULT_WEIGHT) * rating + RESULT_WEIGHT * result.to_numpy()
     board["rating"] = rating
     if "season" in board.columns and len(board):
         roster = _roster_points(board.index, int(board["season"].iloc[0]))
