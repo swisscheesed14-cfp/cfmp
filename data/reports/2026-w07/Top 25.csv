@@ -1,26 +1,26 @@
 rank,team,record,score,conference,conf,sos,win_sos,loss_sos,best_win,games
-1,BYU,6-0,1.02,Big 12,-5.37,1.02,1.02,,Notre Dame,6
-2,Miami,6-0,0.69,ACC,-6.98,0.69,0.69,,Wake Forest,6
-3,Kentucky,6-1,0.56,SEC,-4.05,1.64,1.3,3.35,LSU,7
-4,UCLA,6-0,0.51,Big Ten,-6.7,0.51,0.51,,Oregon,6
-5,Texas Tech,6-0,-0.06,Big 12,-5.37,-0.13,-0.13,,Houston,6
-6,Houston,6-1,-0.06,Big 12,-5.37,1.13,0.72,3.17,Oklahoma State,7
-7,Ole Miss,5-1,-0.38,SEC,-4.05,0.84,0.46,2.75,Missouri,6
-8,Georgia,6-1,-0.54,SEC,-4.05,0.68,0.41,2.03,Alabama,7
-9,Ohio State,6-1,-0.65,Big Ten,-6.7,0.32,-0.15,3.14,Indiana,7
-10,Indiana,6-1,-0.65,Big Ten,-6.7,0.65,0.06,3.58,Northwestern,7
-11,Notre Dame,6-1,-0.66,FBS Independents,-6.06,0.57,-0.05,4.28,North Carolina,7
-12,James Madison,7-0,-0.7,Sun Belt,-12.57,-0.7,-0.7,,Liberty,7
-13,Tennessee,6-1,-0.71,SEC,-4.05,0.58,0.07,3.14,Alabama,7
-14,Boise State,5-1,-0.79,Pac-12,-11.84,0.59,0.03,2.84,Memphis,6
-15,Utah,6-0,-0.8,Big 12,-5.37,-0.8,-0.8,,Iowa State,6
-16,Oregon,4-2,-0.95,Big Ten,-6.7,2.71,2.3,3.32,Boise State,6
-17,Wake Forest,6-1,-1.16,ACC,-6.98,0.13,-0.53,4.08,NC State,7
-18,USC,6-1,-1.21,Big Ten,-6.7,0.07,-0.39,2.84,Louisiana,7
-19,Florida,5-2,-1.31,SEC,-4.05,1.97,2.15,1.61,Ole Miss,7
-20,Texas,4-2,-1.31,SEC,-4.05,2.1,2.14,2.0,Ohio State,6
-21,Missouri,5-2,-1.35,SEC,-4.05,0.93,-0.05,2.88,Florida,7
-22,Iowa,5-1,-1.35,Big Ten,-6.7,0.2,-0.64,3.58,Michigan,6
-23,UTSA,6-1,-1.81,American Athletic,-11.14,-0.34,-1.03,3.14,South Florida,7
-24,LSU,5-2,-1.85,SEC,-4.05,2.11,1.35,3.64,Clemson,7
-25,Northwestern,5-1,-1.92,Big Ten,-6.7,-0.32,-1.09,2.77,Colorado,6
+1,BYU,6-0,1.02,Big 12,-5.09,1.02,1.02,,Notre Dame,6
+2,Miami,6-0,0.69,ACC,-6.68,0.69,0.69,,Wake Forest,6
+3,Kentucky,6-1,0.56,SEC,-3.6,1.64,1.3,3.35,LSU,7
+4,UCLA,6-0,0.51,Big Ten,-6.29,0.51,0.51,,Oregon,6
+5,Texas Tech,6-0,-0.06,Big 12,-5.09,-0.13,-0.13,,Houston,6
+6,Houston,6-1,-0.06,Big 12,-5.09,1.13,0.72,3.17,Oklahoma State,7
+7,Ole Miss,5-1,-0.38,SEC,-3.6,0.84,0.46,2.75,Missouri,6
+8,Oregon,4-2,-0.45,Big Ten,-6.29,2.71,2.3,3.32,Boise State,6
+9,Georgia,6-1,-0.54,SEC,-3.6,0.68,0.41,2.03,Alabama,7
+10,Ohio State,6-1,-0.65,Big Ten,-6.29,0.32,-0.15,3.14,Indiana,7
+11,Indiana,6-1,-0.65,Big Ten,-6.29,0.65,0.06,3.58,Northwestern,7
+12,Notre Dame,6-1,-0.66,FBS Independents,-6.33,0.57,-0.05,4.28,North Carolina,7
+13,James Madison,7-0,-0.7,Sun Belt,-12.5,-0.7,-0.7,,Liberty,7
+14,Tennessee,6-1,-0.71,SEC,-3.6,0.58,0.07,3.14,Alabama,7
+15,Boise State,5-1,-0.79,Pac-12,-11.41,0.59,0.03,2.84,Memphis,6
+16,Utah,6-0,-0.8,Big 12,-5.09,-0.8,-0.8,,Iowa State,6
+17,Florida,5-2,-1.01,SEC,-3.6,1.97,2.15,1.61,Ole Miss,7
+18,Texas,4-2,-1.01,SEC,-3.6,2.1,2.14,2.0,Ohio State,6
+19,Missouri,5-2,-1.11,SEC,-3.6,0.93,-0.05,2.88,Florida,7
+20,Wake Forest,6-1,-1.16,ACC,-6.68,0.13,-0.53,4.08,Louisville,7
+21,USC,6-1,-1.21,Big Ten,-6.29,0.07,-0.39,2.84,Louisiana,7
+22,LSU,5-2,-1.31,SEC,-3.6,2.11,1.35,3.64,Clemson,7
+23,Iowa,5-1,-1.35,Big Ten,-6.29,0.2,-0.64,3.58,Michigan,6
+24,Alabama,5-2,-1.74,SEC,-3.6,1.64,1.13,2.91,Kentucky,7
+25,UTSA,6-1,-1.81,American Athletic,-11.08,-0.34,-1.03,3.14,South Florida,7
