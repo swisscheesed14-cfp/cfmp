@@ -21,11 +21,11 @@ CONFERENCE_PULL = 0.0
 # Schedule is reported and used to order teams that have the same number of losses.
 # It is not added a second time on top of the result.
 SOS_WEIGHT = 0.0
-# The first loss costs this much. Each loss after that costs more.
+# The first loss starts at this cost. Each loss after that starts higher.
 LOSS_COST = 1.25
-# How much steeper the next loss is. 1.0 means the second loss costs twice the first.
+# How much steeper the next loss is. 1.0 means the second loss starts at twice the first.
 LOSS_ACCELERATION = 1.0
-# A loss to a better team gives a little of that cost back. A cupcake loss does not.
+# Subtracted from that loss for each point of opponent quality. A bad loss costs more.
 LOSS_QUALITY = 0.15
 # Same number of losses still counts, unless the winner's losses were clearly worse.
 LOSS_COMPARE = 1.0
@@ -131,19 +131,26 @@ def _head_to_head(played: pd.DataFrame, score: pd.Series, loss_strength: pd.Seri
     return adjusted
 
 
-def _loss_penalty(losses: int) -> float:
-    """The second loss costs more than the first, and the third more than the second."""
-    if losses <= 0:
+def _loss_penalty(opponents: list[float]) -> float:
+    """Each loss is priced from who it was against.
+
+    The best loss fills the cheapest slot. The next loss starts higher, then
+    the opponent's rating is taken off that slot. A loss never becomes a bonus.
+    """
+    if not opponents:
         return 0.0
-    extra = losses * (losses - 1) / 2.0
-    return LOSS_COST * (losses + LOSS_ACCELERATION * extra)
+    ordered = sorted((float(rating) if np.isfinite(rating) else 0.0 for rating in opponents), reverse=True)
+    total = 0.0
+    for index, rating in enumerate(ordered):
+        slot = LOSS_COST * (1.0 + LOSS_ACCELERATION * index)
+        total += max(0.0, slot - LOSS_QUALITY * rating)
+    return total
 
 
-def _record_score(losses: int, win_strength: float, loss_strength: float) -> float:
-    """Who you beat, then who you lost to. More losses get more expensive."""
+def _record_score(win_strength: float, opponents: list[float]) -> float:
+    """Who you beat, minus what each loss cost."""
     wins = 0.0 if not np.isfinite(win_strength) else float(win_strength)
-    losses_faced = 0.0 if losses == 0 or not np.isfinite(loss_strength) else float(loss_strength)
-    return wins + LOSS_QUALITY * losses_faced - _loss_penalty(losses)
+    return wins - _loss_penalty(opponents)
 
 
 def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFrame:
@@ -186,13 +193,13 @@ def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.D
     win_sos = won_fbs.groupby("team")["opponent_rating"].mean()
     loss_sos = lost_fbs.groupby("team")["opponent_rating"].mean()
     no_win = float(rating.quantile(0.10) - 1.5)
+    lost = played[played["margin"] < 0].copy()
+    lost["opponent_rating"] = lost["opponent"].map(rating)
+    lost["opponent_rating"] = lost["opponent_rating"].where(lost["opponent_fbs"], no_win)
+    loss_lists = lost.groupby("team")["opponent_rating"].apply(list)
     score = pd.Series(
         {
-            team: _record_score(
-                int(record.loc[team, "losses"]),
-                float(win_sos.get(team, no_win)),
-                float(loss_sos.get(team, np.nan)),
-            )
+            team: _record_score(float(win_sos.get(team, no_win)), list(loss_lists.get(team, [])))
             for team in teams
         }
     )
