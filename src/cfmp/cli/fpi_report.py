@@ -1,9 +1,11 @@
-"""Write the weekly FPI reports, then price the next unplayed slate.
+"""Write the weekly reports, then price the next unplayed slate.
 
-Rankings wait until that week's snaps are in. The price file is the next
-week's unplayed FBS games. Open is the DraftKings number from the Sunday
-run, and later runs in the week move only the current DraftKings number.
-Positive numbers favor the home team.
+The results Top 25 and the full rankings publish once that week's scores are
+in, which is usually Sunday. They do not wait on the snap file. The other
+rankings still wait until the snaps are in. The price file is the next week's
+unplayed FBS games. Open is the DraftKings number from the Sunday run, and
+later runs in the week move only the current DraftKings number. Positive
+numbers favor the home team.
 """
 
 from __future__ import annotations
@@ -241,16 +243,34 @@ def publish_boards(profile: pd.DataFrame, weights, week: int, dock: pd.Series) -
     print(f"FPI Top 25, FPI, and SOS through week {week} -> {folder}")
 
 
-def publish_resume(schedule: pd.DataFrame, week: int) -> None:
-    """Results top 25. Separate from FPI. Wins, schedule, and conference."""
+def scores_ready_week(schedule: pd.DataFrame, coverage: float = 0.8) -> int | None:
+    """Latest week whose FBS games are mostly final. The Top 25 does not wait on snaps."""
+    info = schedule.loc[schedule["season"] == SEASON, ["game_id", "week", "home_points", "home_division", "away_division"]].copy()
+    fbs = info["home_division"].astype(str).str.lower().eq("fbs") & info["away_division"].astype(str).str.lower().eq("fbs")
+    played = info[fbs].copy()
+    if played.empty:
+        return None
+    played["done"] = played["home_points"].notna()
+    by_week = played.groupby("week").agg(scheduled=("game_id", "size"), done=("done", "sum"))
+    ready = by_week[by_week["done"] / by_week["scheduled"] >= coverage]
+    if ready.empty:
+        return None
+    return int(ready.index.max())
+
+
+def publish_rankings(schedule: pd.DataFrame, week: int) -> None:
+    """Top 25, and every FBS team on the same board."""
     board = resume_board(schedule, SEASON, through_week=week)
-    top = board.head(25)
     folder = OUT / f"{SEASON}-w{week:02d}"
-    _write(top, folder / "resume_top25.csv")
-    _write(board, folder / "resume.csv")
-    _write(top, OUT / "latest" / "resume_top25.csv")
-    _write(board, OUT / "latest" / "resume.csv")
-    print(f"Results top 25 -> {folder / 'resume_top25.csv'} ({len(board)} teams)")
+    latest = OUT / "latest"
+    for name, frame in (("Top 25.csv", board.head(25)), ("Rankings.csv", board)):
+        _write(frame, folder / name)
+        _write(frame, latest / name)
+    for stale in ("resume_top25.csv", "resume.csv"):
+        for path in (folder / stale, latest / stale):
+            if path.exists():
+                path.unlink()
+    print(f"Top 25 and rankings through week {week} -> {folder} ({len(board)} teams)")
 
 
 def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week: int, docks: pd.DataFrame, crowd: pd.Series | None = None) -> None:
@@ -361,8 +381,13 @@ def _card_from_prior_week(schedule: pd.DataFrame, snaps: pd.DataFrame, weights, 
 
 def main() -> None:
     refresh()
-    snaps = pd.read_parquet(SNAPS)
     schedule = _schedule()
+    ranked = scores_ready_week(schedule)
+    if ranked is None:
+        print("No week has final scores yet.")
+    else:
+        publish_rankings(schedule, ranked)
+    snaps = pd.read_parquet(SNAPS)
     week = ready_week(snaps, schedule, SEASON)
     if week is None:
         print("No week has snaps yet.")
@@ -383,7 +408,6 @@ def main() -> None:
     _write(places, OUT / f"{SEASON}-w{week:02d}" / places_name)
     print(f"Toughest places -> {places_name} ({len(places)} stadiums)")
     publish_boards(profile, weights, week, rest)
-    publish_resume(schedule, week)
     (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
     publish_results(schedule, snaps, weights, week)
     price_next(schedule, profile, weights, week, docks)
