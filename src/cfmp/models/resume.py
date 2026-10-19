@@ -26,7 +26,7 @@ ONE_LOSS_GAP = 0.15
 # A negative schedule this bad falls behind teams that have two losses and five wins.
 SCHEDULE_FLOOR = -0.5
 # A win pulls you just ahead of that opponent when your record is at least as good.
-HEAD_TO_HEAD_CUSHION = 0.05
+HEAD_TO_HEAD_CUSHION = 0.001
 RECENCY_PER_WEEK = 0.04
 RECENCY_FLOOR = 0.75
 ITERATIONS = 8
@@ -100,21 +100,20 @@ def _games(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFra
 def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
     """A winner with at least as good a record is not left behind the team it beat.
 
-    The winner moves just ahead of that opponent. A worse record does not jump
-    a better one.
+    The winner moves just ahead of that opponent. More losses does not jump
+    fewer losses. An earlier bye is not more losses.
     """
     wins = played[played["opponent_fbs"] & (played["margin"] > 0)]
     decided = played[played["margin"].ne(0)]
-    record = decided.groupby("team")["margin"].apply(lambda margins: float((margins > 0).mean()))
+    losses = decided.groupby("team")["margin"].apply(lambda margins: int((margins < 0).sum()))
     adjusted = score.copy()
     for game in wins.itertuples(index=False):
         winner, loser = game.team, game.opponent
         if winner not in score.index or loser not in score.index:
             continue
-        if float(record.get(winner, 0.0)) < float(record.get(loser, 0.0)):
+        if int(losses.get(winner, 0)) > int(losses.get(loser, 0)):
             continue
-        gap = float(score[loser] - score[winner])
-        if gap < HEAD_TO_HEAD_CUSHION:
+        if float(score[winner]) > float(score[loser]):
             continue
         adjusted[winner] = max(float(adjusted[winner]), float(score[loser]) + HEAD_TO_HEAD_CUSHION)
     return adjusted
@@ -125,16 +124,14 @@ def _record_score(wins: int, losses: int, sos: float) -> float:
 
     One loss can pass an undefeated team when the schedule is clearly better.
     Two losses cannot pass a team that has fewer losses and a real schedule.
-    Five wins still sits ahead of four wins inside the two-loss group, so a
-    4-2 team does not jump a 5-2 team on schedule alone.
+    Five wins does not sit ahead of four wins. The extra win is often just
+    the week the other team had off.
     """
     schedule = 0.0 if not np.isfinite(sos) else float(sos)
     if losses <= 1 and schedule >= SCHEDULE_FLOOR:
         return schedule - (0.0 if losses == 0 else ONE_LOSS_GAP)
-    if losses == 2 and wins >= 5:
-        return -2.0 + 0.25 * min(schedule, 1.0)
     if losses == 2:
-        return -3.0 + 0.1 * min(schedule, 1.0)
+        return -1.5 + 0.15 * schedule
     return -4.0 + 0.05 * schedule
 
 
@@ -193,7 +190,7 @@ def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.D
     board["sos"] = sos
     board["best_win"] = best["opponent"] if not best.empty else pd.Series(dtype=object)
     board["games"] = played.groupby("team").size()
-    board = board[board["games"] >= MIN_GAMES].sort_values(["score", "wins", "sos"], ascending=[False, False, False])
+    board = board[board["games"] >= MIN_GAMES].sort_values(["score", "sos"], ascending=[False, False])
     board["record"] = board["wins"].astype(str) + "-" + board["losses"].astype(str)
     board = board.reset_index(names="team")
     board.insert(0, "rank", range(1, len(board) + 1))
