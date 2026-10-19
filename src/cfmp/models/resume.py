@@ -21,8 +21,10 @@ CONFERENCE_PULL = 0.0
 # Schedule is reported and used to order teams that have the same number of losses.
 # It is not added a second time on top of the result.
 SOS_WEIGHT = 0.0
-# Each loss costs this much. Who you beat has to earn it back.
+# The first loss costs this much. Each loss after that costs more.
 LOSS_COST = 1.25
+# How much steeper the next loss is. 1.0 means the second loss costs twice the first.
+LOSS_ACCELERATION = 1.0
 # A loss to a better team gives a little of that cost back. A cupcake loss does not.
 LOSS_QUALITY = 0.15
 # A win pulls you just ahead of that opponent when your record is at least as good.
@@ -119,11 +121,19 @@ def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
     return adjusted
 
 
+def _loss_penalty(losses: int) -> float:
+    """The second loss costs more than the first, and the third more than the second."""
+    if losses <= 0:
+        return 0.0
+    extra = losses * (losses - 1) / 2.0
+    return LOSS_COST * (losses + LOSS_ACCELERATION * extra)
+
+
 def _record_score(losses: int, win_strength: float, loss_strength: float) -> float:
-    """Who you beat, then who you lost to. The loss count is the cost, not the rank."""
+    """Who you beat, then who you lost to. More losses get more expensive."""
     wins = 0.0 if not np.isfinite(win_strength) else float(win_strength)
     losses_faced = 0.0 if losses == 0 or not np.isfinite(loss_strength) else float(loss_strength)
-    return wins + LOSS_QUALITY * losses_faced - LOSS_COST * losses
+    return wins + LOSS_QUALITY * losses_faced - _loss_penalty(losses)
 
 
 def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFrame:
