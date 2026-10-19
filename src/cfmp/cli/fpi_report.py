@@ -42,6 +42,8 @@ from cfmp.models.weather import apply_kickoff_weather
 SEASON = 2026
 SNAPS = Path("data/cfbd/game_model.parquet")
 OUT = Path("data/reports")
+# Six points was the gap that already counted as a real disagreement.
+EDGE_POINTS = 6.0
 
 
 def _schedule() -> pd.DataFrame:
@@ -84,6 +86,11 @@ def _cap_model(priced: pd.DataFrame) -> pd.DataFrame:
 def card_name(week: int) -> str:
     """The weekly card. Week 7 is Week7Matchups.csv."""
     return f"Week{int(week)}Matchups.csv"
+
+
+def games_name(week: int) -> str:
+    """The short weekly list. Week 8 is Week8Games.csv."""
+    return f"Week{int(week)}Games.csv"
 
 
 def _prior_card(folder: Path) -> Path | None:
@@ -220,6 +227,83 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     covered = int(out["draftkings"].notna().sum())
     print(f"Priced {len(out)} week {week} games ({covered} with a DraftKings number) -> {folder / name}")
     return week
+
+
+def _kickoff(value: object) -> str:
+    stamp = pd.to_datetime(value, utc=True, errors="coerce")
+    if pd.isna(stamp):
+        return ""
+    local = stamp.tz_convert(ZoneInfo("America/Chicago"))
+    hour = local.strftime("%I").lstrip("0") or "12"
+    return f"{local.strftime('%a')} {hour}:{local.strftime('%M %p')} CT"
+
+
+def _side(edge: float, draftkings: float, home: str, away: str) -> str:
+    """The DraftKings side the model prefers. Positive edge likes the home team."""
+    if pd.isna(edge) or pd.isna(draftkings):
+        return ""
+    team = home if edge >= 0 else away
+    number = -float(draftkings) if edge >= 0 else float(draftkings)
+    if number == 0:
+        return f"{team} PK"
+    sign = "+" if number > 0 else ""
+    return f"{team} {sign}{number:g}"
+
+
+def games_of_the_week(card: pd.DataFrame, rankings: pd.DataFrame | None = None, min_edge: float = EDGE_POINTS) -> pd.DataFrame:
+    """Top 25 versus Top 25 first, then every other game at least `min_edge` off DraftKings."""
+    if card.empty:
+        return card
+    out = card.copy()
+    ranks = pd.DataFrame(columns=["team", "rank", "record"])
+    if rankings is not None and {"team", "rank", "record"} <= set(rankings.columns):
+        ranks = rankings[["team", "rank", "record"]].drop_duplicates("team")
+    out = out.merge(ranks.rename(columns={"team": "away", "rank": "away_rank", "record": "away_record"}), on="away", how="left")
+    out = out.merge(ranks.rename(columns={"team": "home", "rank": "home_rank", "record": "home_record"}), on="home", how="left")
+    top = (out["away_rank"] <= 25) & (out["home_rank"] <= 25)
+    edge = pd.to_numeric(out["edge"], errors="coerce")
+    big = edge.abs() >= min_edge
+    out = out[top | big].copy()
+    if out.empty:
+        return out
+    out["group"] = "Edge"
+    out.loc[top.reindex(out.index).fillna(False), "group"] = "Top 25"
+    out["kickoff"] = out["start_date"].map(_kickoff) if "start_date" in out.columns else ""
+    out["side"] = [
+        _side(gap, line, home, away)
+        for gap, line, home, away in zip(out["edge"], out["draftkings"], out["home"], out["away"])
+    ]
+    out["_order"] = out["group"].map({"Top 25": 0, "Edge": 1}).fillna(2)
+    out["_edge"] = pd.to_numeric(out["edge"], errors="coerce").abs()
+    out["_edge"] = out["_edge"].where(out["group"].eq("Edge"), 0)
+    kick = pd.to_datetime(out["start_date"], utc=True, errors="coerce") if "start_date" in out.columns else pd.Series(pd.NaT, index=out.index)
+    out = out.assign(_kick=kick).sort_values(["_order", "_edge", "_kick"], ascending=[True, False, True])
+    columns = [
+        "group", "kickoff", "away_rank", "away", "away_record", "home_rank", "home", "home_record",
+        "model", "draftkings", "edge", "side", "total", "away_ml", "home_ml", "forecast",
+    ]
+    keep = [name for name in columns if name in out.columns]
+    shown = out[keep].copy()
+    for name in ("away_rank", "home_rank"):
+        if name in shown.columns:
+            shown[name] = pd.to_numeric(shown[name], errors="coerce").astype("Int64")
+    return shown.reset_index(drop=True)
+
+
+def publish_games(card: pd.DataFrame, week: int) -> None:
+    """Write the short list next to the full card."""
+    path = OUT / "latest" / "Rankings.csv"
+    rankings = pd.read_csv(path) if path.exists() else None
+    games = games_of_the_week(card, rankings)
+    name = games_name(week)
+    folder = OUT / f"{SEASON}-w{week:02d}"
+    latest = OUT / "latest"
+    _write(games, folder / name)
+    for stale in latest.glob("Week*Games.csv"):
+        if stale.name != name:
+            stale.unlink()
+    _write(games, latest / name)
+    print(f"Games of the week -> {folder / name} ({len(games)} games)")
 
 
 def _with_quarterback(board: pd.DataFrame, dock: pd.Series) -> pd.DataFrame:
@@ -410,7 +494,9 @@ def main() -> None:
     publish_boards(profile, weights, week, rest)
     (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
     publish_results(schedule, snaps, weights, week)
-    price_next(schedule, profile, weights, week, docks)
+    priced_week = price_next(schedule, profile, weights, week, docks)
+    if priced_week is not None:
+        publish_games(pd.read_csv(OUT / "latest" / card_name(priced_week)), priced_week)
     publish_playoff(schedule, profile, weights, week, docks, crowd)
 
 

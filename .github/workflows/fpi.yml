@@ -80,11 +80,16 @@ jobs:
           week=$(printf '%s' "$file" | sed -E 's/Week([0-9]+)Matchups.csv/\1/')
           result=$(ls data/reports/latest/Week*Results.csv 2>/dev/null || true)
           rates=$(ls data/reports/latest/Week*Rates.csv 2>/dev/null || true)
+          games=$(ls data/reports/latest/Week*Games.csv 2>/dev/null || true)
           attach="data/reports/latest/Top 25.csv,data/reports/latest/Rankings.csv,data/reports/latest/fpi_top25.csv,data/reports/latest/fpi.csv,data/reports/latest/sos.csv,data/reports/latest/Toughest Places to Play.csv,$card,data/reports/latest/playoff.csv"
           extra=""
+          if [ -n "$games" ]; then
+            attach="$attach,$games"
+            extra="$(basename "$games") lists Top 25 matchups first, then every game at least 6 points off DraftKings."
+          fi
           if [ -n "$result" ]; then
             attach="$attach,$result"
-            extra="$(basename "$result") is last week's graded card."
+            extra="$extra $(basename "$result") is last week's graded card."
           fi
           if [ -n "$rates" ]; then
             attach="$attach,$rates"
