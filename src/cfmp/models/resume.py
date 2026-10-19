@@ -20,6 +20,10 @@ CONFERENCE_PULL = 0.18
 # Schedule is its own piece, on top of the opponent already inside each result.
 # One point of schedule is worth this much of the score.
 SOS_WEIGHT = 0.65
+# A win pulls you just ahead of that opponent, unless the résumé gap is
+# already more than a full point. It does not drag anybody else with it.
+HEAD_TO_HEAD_CUSHION = 0.05
+HEAD_TO_HEAD_LIMIT = 1.0
 RECENCY_PER_WEEK = 0.04
 RECENCY_FLOOR = 0.75
 ITERATIONS = 8
@@ -90,6 +94,29 @@ def _games(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFra
     return played[played["fbs"]].copy()
 
 
+def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
+    """A winner with at least as good a record is not left behind the team it beat.
+
+    The winner moves just ahead of that opponent. A worse record does not jump
+    a better one, and a gap bigger than a point is left alone.
+    """
+    wins = played[played["opponent_fbs"] & (played["margin"] > 0)]
+    decided = played[played["margin"].ne(0)]
+    record = decided.groupby("team")["margin"].apply(lambda margins: float((margins > 0).mean()))
+    adjusted = score.copy()
+    for game in wins.itertuples(index=False):
+        winner, loser = game.team, game.opponent
+        if winner not in score.index or loser not in score.index:
+            continue
+        if float(record.get(winner, 0.0)) < float(record.get(loser, 0.0)):
+            continue
+        gap = float(score[loser] - score[winner])
+        if gap < HEAD_TO_HEAD_CUSHION or gap > HEAD_TO_HEAD_LIMIT:
+            continue
+        adjusted[winner] = max(float(adjusted[winner]), float(score[loser]) + HEAD_TO_HEAD_CUSHION)
+    return adjusted
+
+
 def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFrame:
     """Every FBS team, best results first. Score is points versus an average résumé."""
     played = _games(schedule, season, through_week)
@@ -126,6 +153,7 @@ def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.D
     sos = fbs_played["opponent"].map(rating).groupby(fbs_played["team"]).mean()
     score = rating + SOS_WEIGHT * sos.reindex(teams).fillna(0.0)
     score = score - score.mean()
+    score = _head_to_head(played, score)
     conf_score = score.groupby(conference.reindex(teams).fillna("").to_numpy()).transform("mean")
     conf_score.index = teams
     won = played[wins & played["opponent_fbs"]].copy()

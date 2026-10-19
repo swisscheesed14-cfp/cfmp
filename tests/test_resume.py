@@ -44,3 +44,15 @@ def test_a_better_win_ranks_higher() -> None:
     board = resume_board(pd.DataFrame(rows), 2026, through_week=6).set_index("team")
     assert board.loc["Strong", "rank"] < board.loc["Soft", "rank"]
     assert board.loc["Strong", "best_win"] == "Good"
+
+
+def test_a_winner_is_ranked_ahead_of_the_team_it_beat() -> None:
+    rows = []
+    for week in range(1, 5):
+        rows.append(_game(week, "Favorite", "Cupcake", 30, 7, "Big 12", "Big 12"))
+        rows.append(_game(week, "Underdog", "Doormat", 21, 20, "Big 12", "Big 12"))
+    rows.append(_game(5, "Underdog", "Favorite", 24, 21, "Big 12", "Big 12"))
+    rows.append(_game(6, "Favorite", "Filler", 28, 14, "Big 12", "Big 12"))
+    rows.append(_game(6, "Underdog", "FillerB", 17, 14, "Big 12", "Big 12"))
+    board = resume_board(pd.DataFrame(rows), 2026, through_week=6).set_index("team")
+    assert board.loc["Underdog", "rank"] < board.loc["Favorite", "rank"]
