@@ -56,3 +56,15 @@ def test_a_winner_is_ranked_ahead_of_the_team_it_beat() -> None:
     rows.append(_game(6, "Underdog", "FillerB", 17, 14, "Big 12", "Big 12"))
     board = resume_board(pd.DataFrame(rows), 2026, through_week=6).set_index("team")
     assert board.loc["Underdog", "rank"] < board.loc["Favorite", "rank"]
+
+
+def test_cupcake_wins_do_not_rank_with_a_real_win() -> None:
+    rows = []
+    for week in range(1, 6):
+        rows.append(_game(week, "Cupcake", "Doormat", 30, 7, "American Athletic", "American Athletic"))
+        rows.append(_game(week, "Quality", "Solid", 24, 17, "SEC", "SEC"))
+    rows.append(_game(6, "Cupcake", "GoodLoss", 10, 17, "American Athletic", "SEC"))
+    rows.append(_game(6, "Quality", "GoodLoss", 14, 21, "SEC", "SEC"))
+    rows.append(_game(7, "Solid", "Doormat", 28, 14, "SEC", "American Athletic"))
+    board = resume_board(pd.DataFrame(rows), 2026, through_week=7).set_index("team")
+    assert board.loc["Quality", "rank"] < board.loc["Cupcake", "rank"]
