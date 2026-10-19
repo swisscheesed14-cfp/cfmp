@@ -27,6 +27,8 @@ LOSS_COST = 1.25
 LOSS_ACCELERATION = 1.0
 # A loss to a better team gives a little of that cost back. A cupcake loss does not.
 LOSS_QUALITY = 0.15
+# Same number of losses still counts, unless the winner's losses were clearly worse.
+LOSS_COMPARE = 1.0
 # A win pulls you just ahead of that opponent when your record is at least as good.
 HEAD_TO_HEAD_CUSHION = 0.001
 RECENCY_PER_WEEK = 0.04
@@ -99,11 +101,12 @@ def _games(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFra
     return played[played["fbs"]].copy()
 
 
-def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
-    """A winner with fewer losses moves just ahead of the team it beat.
+def _head_to_head(played: pd.DataFrame, score: pd.Series, loss_strength: pd.Series) -> pd.Series:
+    """Put a winner just ahead of the team it beat.
 
-    The same number of losses does not. Beating Oregon is already inside the
-    wins. It does not excuse a loss to Tulsa, and it does not copy Oregon's rank.
+    More losses does not jump fewer losses. The same number of losses does,
+    unless the winner's losses were clearly worse. That is what keeps a loss
+    to Tulsa from copying Oregon's rank.
     """
     wins = played[played["opponent_fbs"] & (played["margin"] > 0)]
     decided = played[played["margin"].ne(0)]
@@ -113,8 +116,15 @@ def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
         winner, loser = game.team, game.opponent
         if winner not in score.index or loser not in score.index:
             continue
-        if int(losses.get(winner, 0)) >= int(losses.get(loser, 0)):
+        winner_losses = int(losses.get(winner, 0))
+        loser_losses = int(losses.get(loser, 0))
+        if winner_losses > loser_losses:
             continue
+        if winner_losses == loser_losses:
+            winner_quality = float(loss_strength.get(winner, np.nan))
+            loser_quality = float(loss_strength.get(loser, np.nan))
+            if np.isfinite(winner_quality) and np.isfinite(loser_quality) and winner_quality + LOSS_COMPARE < loser_quality:
+                continue
         if float(score[winner]) > float(score[loser]):
             continue
         adjusted[winner] = max(float(adjusted[winner]), float(score[loser]) + HEAD_TO_HEAD_CUSHION)
@@ -186,7 +196,7 @@ def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.D
             for team in teams
         }
     )
-    score = _head_to_head(played, score)
+    score = _head_to_head(played, score, loss_sos)
     conf_score = score.groupby(conference.reindex(teams).fillna("").to_numpy()).transform("mean")
     conf_score.index = teams
     won = played[wins & played["opponent_fbs"]].copy()
