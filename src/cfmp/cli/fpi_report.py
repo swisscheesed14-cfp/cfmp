@@ -33,6 +33,7 @@ from cfmp.models.season import (
 from cfmp.models.availability import quarterback_docks
 from cfmp.models.playoff import playoff_odds
 from cfmp.models.results import grade_card, week_rates
+from cfmp.models.resume import resume_board
 from cfmp.models.site import home_edges, toughest_places
 from cfmp.models.weather import apply_kickoff_weather
 
@@ -240,6 +241,18 @@ def publish_boards(profile: pd.DataFrame, weights, week: int, dock: pd.Series) -
     print(f"FPI Top 25, FPI, and SOS through week {week} -> {folder}")
 
 
+def publish_resume(schedule: pd.DataFrame, week: int) -> None:
+    """Results top 25. Separate from FPI. Wins, schedule, and conference."""
+    board = resume_board(schedule, SEASON, through_week=week)
+    top = board.head(25)
+    folder = OUT / f"{SEASON}-w{week:02d}"
+    _write(top, folder / "resume_top25.csv")
+    _write(board, folder / "resume.csv")
+    _write(top, OUT / "latest" / "resume_top25.csv")
+    _write(board, OUT / "latest" / "resume.csv")
+    print(f"Results top 25 -> {folder / 'resume_top25.csv'} ({len(board)} teams)")
+
+
 def publish_playoff(schedule: pd.DataFrame, profile: pd.DataFrame, weights, week: int, docks: pd.DataFrame, crowd: pd.Series | None = None) -> None:
     """Playoff odds from the games still left. Written on every run, not just Mondays."""
     ratings = fpi_board(profile, weights, min_games=1).set_index("team")["fpi"]
@@ -370,6 +383,7 @@ def main() -> None:
     _write(places, OUT / f"{SEASON}-w{week:02d}" / places_name)
     print(f"Toughest places -> {places_name} ({len(places)} stadiums)")
     publish_boards(profile, weights, week, rest)
+    publish_resume(schedule, week)
     (OUT / "latest" / "week.txt").write_text(str(week), encoding="utf-8")
     publish_results(schedule, snaps, weights, week)
     price_next(schedule, profile, weights, week, docks)
