@@ -1,9 +1,10 @@
 """Results top 25. Wins and losses, not the snap rating.
 
 A win is worth more than the margin. Beating a good team is worth more than
-beating a bad one. A road win and a home loss count a little extra. Teams are
-pulled a bit toward their own conference, so the league they play in matters.
-Opponent strength is this board's rating, rebuilt until it stops moving.
+beating a bad one. A road win and a home loss count a little extra. Opponent
+strength is this board's rating, rebuilt until it stops moving. Conference is
+reported, not added. Schedule reorders teams with the same number of losses.
+It does not buy a second loss.
 """
 
 from __future__ import annotations
@@ -16,14 +17,16 @@ MARGIN_CAP = 10.0
 MARGIN_POINT = 0.08
 ROAD_POINTS = 0.75
 HOME_FIELD = 2.5
-CONFERENCE_PULL = 0.18
-# Schedule is its own piece, on top of the opponent already inside each result.
-# One point of schedule is worth this much of the score.
-SOS_WEIGHT = 0.65
-# A win pulls you just ahead of that opponent, unless the résumé gap is
-# already more than a full point. It does not drag anybody else with it.
+CONFERENCE_PULL = 0.0
+# Schedule is reported and used to order teams that have the same number of losses.
+# It is not added a second time on top of the result.
+SOS_WEIGHT = 0.0
+# One loss can pass an undefeated team only when the schedule is this much better.
+ONE_LOSS_GAP = 0.15
+# A negative schedule this bad falls behind teams that have two losses and five wins.
+SCHEDULE_FLOOR = -0.5
+# A win pulls you just ahead of that opponent when your record is at least as good.
 HEAD_TO_HEAD_CUSHION = 0.05
-HEAD_TO_HEAD_LIMIT = 1.0
 RECENCY_PER_WEEK = 0.04
 RECENCY_FLOOR = 0.75
 ITERATIONS = 8
@@ -98,7 +101,7 @@ def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
     """A winner with at least as good a record is not left behind the team it beat.
 
     The winner moves just ahead of that opponent. A worse record does not jump
-    a better one, and a gap bigger than a point is left alone.
+    a better one.
     """
     wins = played[played["opponent_fbs"] & (played["margin"] > 0)]
     decided = played[played["margin"].ne(0)]
@@ -111,10 +114,28 @@ def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
         if float(record.get(winner, 0.0)) < float(record.get(loser, 0.0)):
             continue
         gap = float(score[loser] - score[winner])
-        if gap < HEAD_TO_HEAD_CUSHION or gap > HEAD_TO_HEAD_LIMIT:
+        if gap < HEAD_TO_HEAD_CUSHION:
             continue
         adjusted[winner] = max(float(adjusted[winner]), float(score[loser]) + HEAD_TO_HEAD_CUSHION)
     return adjusted
+
+
+def _record_score(wins: int, losses: int, sos: float) -> float:
+    """Losses first. Schedule only reorders teams on the same side of a loss.
+
+    One loss can pass an undefeated team when the schedule is clearly better.
+    Two losses cannot pass a team that has fewer losses and a real schedule.
+    Five wins still sits ahead of four wins inside the two-loss group, so a
+    4-2 team does not jump a 5-2 team on schedule alone.
+    """
+    schedule = 0.0 if not np.isfinite(sos) else float(sos)
+    if losses <= 1 and schedule >= SCHEDULE_FLOOR:
+        return schedule - (0.0 if losses == 0 else ONE_LOSS_GAP)
+    if losses == 2 and wins >= 5:
+        return -2.0 + 0.25 * min(schedule, 1.0)
+    if losses == 2:
+        return -3.0 + 0.1 * min(schedule, 1.0)
+    return -4.0 + 0.05 * schedule
 
 
 def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFrame:
@@ -151,8 +172,12 @@ def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.D
     ).reindex(teams).fillna(0).astype(int)
     fbs_played = played[played["opponent_fbs"]]
     sos = fbs_played["opponent"].map(rating).groupby(fbs_played["team"]).mean()
-    score = rating + SOS_WEIGHT * sos.reindex(teams).fillna(0.0)
-    score = score - score.mean()
+    score = pd.Series(
+        {
+            team: _record_score(int(record.loc[team, "wins"]), int(record.loc[team, "losses"]), float(sos.get(team, np.nan)))
+            for team in teams
+        }
+    )
     score = _head_to_head(played, score)
     conf_score = score.groupby(conference.reindex(teams).fillna("").to_numpy()).transform("mean")
     conf_score.index = teams
@@ -168,7 +193,7 @@ def resume_board(schedule: pd.DataFrame, season: int, through_week: int) -> pd.D
     board["sos"] = sos
     board["best_win"] = best["opponent"] if not best.empty else pd.Series(dtype=object)
     board["games"] = played.groupby("team").size()
-    board = board[board["games"] >= MIN_GAMES].sort_values(["score", "wins"], ascending=[False, False])
+    board = board[board["games"] >= MIN_GAMES].sort_values(["score", "wins", "sos"], ascending=[False, False, False])
     board["record"] = board["wins"].astype(str) + "-" + board["losses"].astype(str)
     board = board.reset_index(names="team")
     board.insert(0, "rank", range(1, len(board) + 1))
