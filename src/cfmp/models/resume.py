@@ -98,10 +98,10 @@ def _games(schedule: pd.DataFrame, season: int, through_week: int) -> pd.DataFra
 
 
 def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
-    """A winner with at least as good a record is not left behind the team it beat.
+    """A winner with fewer losses moves just ahead of the team it beat.
 
-    The winner moves just ahead of that opponent. More losses does not jump
-    fewer losses. An earlier bye is not more losses.
+    The same number of losses does not. Beating Oregon is already inside the
+    wins. It does not excuse a loss to Tulsa, and it does not copy Oregon's rank.
     """
     wins = played[played["opponent_fbs"] & (played["margin"] > 0)]
     decided = played[played["margin"].ne(0)]
@@ -111,7 +111,7 @@ def _head_to_head(played: pd.DataFrame, score: pd.Series) -> pd.Series:
         winner, loser = game.team, game.opponent
         if winner not in score.index or loser not in score.index:
             continue
-        if int(losses.get(winner, 0)) > int(losses.get(loser, 0)):
+        if int(losses.get(winner, 0)) >= int(losses.get(loser, 0)):
             continue
         if float(score[winner]) > float(score[loser]):
             continue
