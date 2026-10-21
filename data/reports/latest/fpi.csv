@@ -32,30 +32,30 @@ rank,team,fpi,games
 31,Pittsburgh,3.99,6
 32,Oregon State,3.942,6
 33,South Carolina,3.795,5
-34,Iowa,3.651,5
-35,Texas State,3.558,5
-36,Auburn,3.484,6
-37,UCF,3.381,5
-38,North Carolina,3.283,5
-39,Virginia Tech,3.137,6
-40,Clemson,3.068,5
-41,Michigan,2.991,6
-42,North Texas,2.763,5
-43,Boise State,2.712,5
-44,Baylor,2.699,5
-45,North Dakota State,2.685,6
-46,Colorado,2.551,5
-47,James Madison,2.536,6
-48,SMU,2.467,5
-49,Air Force,2.213,5
-50,Florida State,2.137,6
-51,UTSA,1.756,6
-52,Navy,1.656,5
-53,Kansas State,1.596,5
-54,Liberty,1.405,5
-55,Duke,1.321,5
-56,Georgia State,1.287,5
-57,Toledo,1.182,6
+34,Texas State,3.558,5
+35,Auburn,3.484,6
+36,UCF,3.381,5
+37,North Carolina,3.283,5
+38,Virginia Tech,3.137,6
+39,Clemson,3.069,5
+40,Michigan,2.991,6
+41,North Texas,2.763,5
+42,Boise State,2.712,5
+43,Baylor,2.699,5
+44,North Dakota State,2.685,6
+45,Colorado,2.551,5
+46,James Madison,2.536,6
+47,SMU,2.467,5
+48,Air Force,2.213,5
+49,Florida State,2.137,6
+50,UTSA,1.756,6
+51,Navy,1.656,5
+52,Kansas State,1.596,5
+53,Liberty,1.405,5
+54,Duke,1.321,5
+55,Georgia State,1.287,5
+56,Toledo,1.182,6
+57,Iowa,1.121,5
 58,Michigan State,1.027,7
 59,Vanderbilt,0.961,6
 60,Memphis,0.893,6
@@ -116,9 +116,9 @@ rank,team,fpi,games
 115,Northern Illinois,-4.507,5
 116,App State,-4.569,5
 117,Buffalo,-4.616,5
-118,Delaware,-4.638,5
-119,Eastern Michigan,-4.967,7
-120,Rice,-5.017,6
+118,Eastern Michigan,-4.967,7
+119,Rice,-5.017,6
+120,Delaware,-5.018,5
 121,Charlotte,-5.312,6
 122,Stanford,-5.315,6
 123,Ball State,-5.337,6
