@@ -128,6 +128,77 @@ def apply_open(out: pd.DataFrame, folder: Path, lock_today: bool) -> pd.DataFram
     return out
 
 
+RESULT_COLUMNS = ("away_rank", "home_rank", "away_score", "home_score")
+
+
+def attach_board_ranks(card: pd.DataFrame, rankings: pd.DataFrame | None) -> pd.DataFrame:
+    """Rank from the published Top 25. A team outside it stays blank."""
+    out = card.copy()
+    ranks: dict[str, int] = {}
+    if rankings is not None and {"team", "rank"} <= set(rankings.columns):
+        for team, rank in zip(rankings["team"], rankings["rank"], strict=False):
+            number = pd.to_numeric(rank, errors="coerce")
+            if pd.notna(number) and 1 <= int(number) <= 25:
+                ranks[str(team)] = int(number)
+    out["away_rank"] = out["away"].map(ranks) if "away" in out.columns else pd.NA
+    out["home_rank"] = out["home"].map(ranks) if "home" in out.columns else pd.NA
+    return out
+
+
+def _game_done(game: dict) -> bool:
+    flag = game.get("completed", game.get("status"))
+    if isinstance(flag, str):
+        return flag.lower() in {"completed", "final", "final/ot"}
+    if flag is not None:
+        return bool(flag)
+    away = game.get("awayPoints", game.get("away_points"))
+    home = game.get("homePoints", game.get("home_points"))
+    return away is not None and home is not None
+
+
+def apply_final_scores(card: pd.DataFrame, games: list[dict]) -> pd.DataFrame:
+    """Write a score only after the game is final. A game in progress stays blank."""
+    out = card.copy()
+    for column in ("away_score", "home_score"):
+        if column not in out.columns:
+            out[column] = pd.NA
+    finals: dict[tuple[str, str], tuple[int, int]] = {}
+    for game in games:
+        if not _game_done(game):
+            continue
+        away = game.get("awayTeam", game.get("away_team"))
+        home = game.get("homeTeam", game.get("home_team"))
+        away_pts = game.get("awayPoints", game.get("away_points"))
+        home_pts = game.get("homePoints", game.get("home_points"))
+        if away is None or home is None or away_pts is None or home_pts is None:
+            continue
+        finals[(str(away), str(home))] = (int(away_pts), int(home_pts))
+    for index, row in out.iterrows():
+        found = finals.get((str(row["away"]), str(row["home"])))
+        if found is None:
+            continue
+        out.at[index, "away_score"] = found[0]
+        out.at[index, "home_score"] = found[1]
+    return out
+
+
+def restore_scores(card: pd.DataFrame, folder: Path) -> pd.DataFrame:
+    """A line refresh must not wipe a final that was already recorded."""
+    out = card.copy()
+    for column in ("away_score", "home_score"):
+        if column not in out.columns:
+            out[column] = pd.NA
+    prior = _prior_card(folder)
+    if prior is None or out.empty:
+        return out
+    saved = pd.read_csv(prior)
+    if not {"away", "home", "away_score", "home_score"} <= set(saved.columns):
+        return out
+    saved = saved[["away", "home", "away_score", "home_score"]].drop_duplicates(["away", "home"])
+    out = out.drop(columns=["away_score", "home_score"]).merge(saved, on=["away", "home"], how="left")
+    return out
+
+
 def _keep_last_lines(priced: pd.DataFrame, folder: Path) -> pd.DataFrame:
     """If DraftKings does not answer, keep the last number instead of a blank."""
     prior = _prior_card(folder)
@@ -208,11 +279,17 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         columns = ["start_date", *columns]
     folder = OUT / f"{SEASON}-w{week:02d}"
     out = apply_open(priced, folder, _open_day())
+    out = restore_scores(out, folder)
+    board = OUT / "latest" / "Top 25.csv"
+    out = attach_board_ranks(out, pd.read_csv(board) if board.exists() else None)
+    columns = [*columns, "away_rank", "home_rank", "away_score", "home_score"]
     out = out[columns].copy()
     for column in ("dk_open", "model", "draftkings", "edge", "total", "weather"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(2)
     for column in ("home_ml", "away_ml"):
         out[column] = pd.to_numeric(out[column], errors="coerce").round(0)
+    for column in RESULT_COLUMNS:
+        out[column] = pd.to_numeric(out[column], errors="coerce").astype("Int64")
     name = card_name(week)
     _write(out, folder / name)
     latest = OUT / "latest"
@@ -255,6 +332,7 @@ def games_of_the_week(card: pd.DataFrame, rankings: pd.DataFrame | None = None, 
     if card.empty:
         return card
     out = card.copy()
+    out = out.drop(columns=["away_rank", "home_rank", "away_record", "home_record"], errors="ignore")
     ranks = pd.DataFrame(columns=["team", "rank", "record"])
     if rankings is not None and {"team", "rank", "record"} <= set(rankings.columns):
         ranks = rankings[["team", "rank", "record"]].drop_duplicates("team")
