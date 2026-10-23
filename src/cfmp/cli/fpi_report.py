@@ -274,7 +274,7 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
         priced = priced.sort_values(["start_date", "home"])
     else:
         priced = priced.sort_values("home")
-    columns = ["away", "home", "dk_open", "model", "draftkings", "edge", "total", "away_ml", "home_ml", "weather", "forecast"]
+    columns = ["away", "home", "dk_open", "model", "draftkings", "actual", "edge", "total", "away_ml", "home_ml", "weather", "forecast"]
     if "start_date" in priced.columns:
         columns = ["start_date", *columns]
     folder = OUT / f"{SEASON}-w{week:02d}"
@@ -282,6 +282,9 @@ def price_next(schedule: pd.DataFrame, profile: pd.DataFrame, weights, through_w
     out = restore_scores(out, folder)
     board = OUT / "latest" / "Top 25.csv"
     out = attach_board_ranks(out, pd.read_csv(board) if board.exists() else None)
+    out["actual"] = (
+        pd.to_numeric(out["home_score"], errors="coerce") - pd.to_numeric(out["away_score"], errors="coerce")
+    ).round(2)
     columns = [*columns, "away_rank", "home_rank", "away_score", "home_score"]
     out = out[columns].copy()
     for column in ("dk_open", "model", "draftkings", "edge", "total", "weather"):

@@ -35,9 +35,17 @@ def week_of(path: Path) -> int:
 def stamp(card: pd.DataFrame, games: list[dict], rankings: pd.DataFrame | None) -> pd.DataFrame:
     out = apply_final_scores(card, games)
     out = attach_board_ranks(out, rankings)
+    out["actual"] = (
+        pd.to_numeric(out["home_score"], errors="coerce") - pd.to_numeric(out["away_score"], errors="coerce")
+    ).round(2)
     for column in RESULT_COLUMNS:
         out[column] = pd.to_numeric(out[column], errors="coerce").astype("Int64")
-    return out
+    columns = [name for name in out.columns if name != "actual"]
+    if "draftkings" in columns:
+        columns.insert(columns.index("draftkings") + 1, "actual")
+    else:
+        columns.append("actual")
+    return out[columns]
 
 
 def main() -> None:
